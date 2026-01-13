@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cisco Lab Auto-Recovery Tool</title>
+    <style>
+      body {
+        font-family: "Consolas", monospace;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 20px;
+      }
+      h1 {
+        color: #4ec9b0;
+        border-bottom: 2px solid #4ec9b0;
+        padding-bottom: 10px;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      /* Terminal Screen Style */
+      #terminal {
+        width: 100%;
+        height: 400px;
+        background-color: #000;
+        color: #0f0;
+        border: 1px solid #555;
+        overflow-y: scroll;
+        padding: 10px;
+        font-size: 14px;
+        white-space: pre-wrap;
+        margin-bottom: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Button Style */
+      button {
+        background-color: #0e639c;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        margin: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: inherit;
+        transition: background 0.3s;
+      }
+      button:hover {
+        background-color: #1177bb;
+      }
+      button:disabled {
+        background-color: #444;
+        cursor: not-allowed;
+      }
+
+      .status-bar {
+        margin-bottom: 15px;
+        padding: 10px;
+        background: #2d2d2d;
+        border-radius: 4px;
+      }
+      .highlight {
+        color: #ce9178;
+        font-weight: bold;
+      }
+      .cmd-group {
+        border: 1px solid #444;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+      }
+      .cmd-group h3 {
+        margin-top: 0;
+        color: #dcdcaa;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Cisco Router & Switch Recovery Tool</h1>
+
+      <div class="status-bar">
+        <span id="statusText">Status: Waiting for connection...</span>
+        <button
+          onclick="connectSerial()"
+          style="
+            float: right;
+            margin-top: -5px;
+            background: #4ec9b0;
+            color: black;
+            font-weight: bold;
+          "
+        >
+          🔌 Connect Device
+        </button>
+      </div>
+
+      <div id="terminal"></div>
+
+      <div class="cmd-group">
+        <h3>1. Router Recovery (1941, 4221, etc.)</h3>
+        <p style="font-size: 12px; color: #888">
+          * Start from 'rommon 1 >' prompt.
+        </p>
+        <button id="btnRouter" onclick="runRouterRecovery()" disabled>
+          Start Router Recovery
+        </button>
+      </div>
+
+      <div class="cmd-group">
+        <h3>2. Standard Switch Reset (2960, C1000)</h3>
+        <p style="font-size: 12px; color: #888">
+          * Start from 'switch:' prompt.
+        </p>
+        <button id="btnSwitch" onclick="runSwitchReset()" disabled>
+          Start Switch Reset
+        </button>
+      </div>
+
+      <div class="cmd-group">
+        <h3>3. Catalyst 9200 Recovery</h3>
+        <p style="font-size: 12px; color: #888">
+          * Start from 'switch:' prompt.
+        </p>
+        <button id="btn9200" onclick="run9200Recovery()" disabled>
+          Start 9200 Recovery
+        </button>
+      </div>
+    </div>
+
+    <script>
+      let port, writer, reader;
+      let keepReading = false;
+      let globalBuffer = ""; // Buffer to store incoming data
+
+      // --- 1. Serial Connection Logic ---
+      async function connectSerial() {
+        if (!navigator.serial) {
+          alert("Web Serial API is not supported. Please use Chrome or Edge.");
+          return;
+        }
+
+        try {
+          port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 9600 }); // Cisco default baud rate
+
+          logToTerminal("[SYSTEM] Serial Port Connected Successfully.");
+          document.getElementById("statusText").innerText =
+            "Status: Connected (9600bps)";
+
+          // Enable Buttons
+          document.getElementById("btnRouter").disabled = false;
+          document.getElementById("btnSwitch").disabled = false;
+          document.getElementById("btn9200").disabled = false;
+
+          keepReading = true;
+          readLoop(); // Start reading data
+        } catch (err) {
+          logToTerminal("[ERROR] Connection Failed: " + err);
+        }
+      }
+
+      // --- 2. Data Reading Loop (Background) ---
+      async function readLoop() {
+        const textDecoder = new TextDecoderStream();
+        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        reader = textDecoder.readable.getReader();
+
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value) {
+              globalBuffer += value; // Accumulate data in buffer
+              logToTerminal(value, true); // Display on screen
+            }
+          }
+        } catch (error) {
+          logToTerminal("[ERROR] Read Error: " + error);
+        } finally {
+          reader.releaseLock();
+        }
+      }
+
+      // --- 3. Command Sending & Waiting Engine (Core Logic) ---
+      async function writeToStream(data) {
+        const textEncoder = new TextEncoderStream();
+        const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+        const writer = textEncoder.writable.getWriter();
+        await writer.write(data + "\r");
+        writer.close();
+      }
+
+      // Function to wait until a specific pattern appears in the buffer
+      async function wait(pattern, timeoutSec = 30) {
+        logToTerminal(`\n[WAITING] Waiting for "${pattern}"...`);
+        const startTime = Date.now();
+
+        while (true) {
+          // Check buffer
+          if (globalBuffer.includes(pattern)) {
+            globalBuffer = ""; // Clear buffer to avoid duplicate detection
+            return true;
+          }
+
+          // Check timeout
+          if (Date.now() - startTime > timeoutSec * 1000) {
+            logToTerminal(`\n[TIMEOUT] No response for ${timeoutSec} seconds.`);
+            return false;
+          }
+
+          await new Promise((r) => setTimeout(r, 100)); // Wait 0.1s
+        }
+      }
+
+      function logToTerminal(msg, isRaw = false) {
+        const term = document.getElementById("terminal");
+        if (isRaw) {
+          term.textContent += msg;
+        } else {
+          term.textContent += "\n" + msg;
+        }
+        term.scrollTop = term.scrollHeight; // Auto-scroll
+      }
+
+      // --- 4. Automation Scenarios (Based on Documentation) ---
+
+      // A. Router Recovery Script [References Page 1-3]
+      async function runRouterRecovery() {
+        if (!confirm("Start Router Recovery? (Must be at 'rommon 1 >')"))
+          return;
+
+        await writeToStream("confreg 0x2142");
+        if (!(await wait("rommon 2 >"))) return;
+
+        await writeToStream("reset");
+        logToTerminal("[INFO] Rebooting... (This may take a while)");
+
+        // Detect initial configuration dialog
+        if (!(await wait("initial configuration dialog", 600))) return; // Wait 10 mins max
+        await writeToStream("no");
+
+        if (!(await wait("Router>"))) return;
+        await writeToStream("enable");
+
+        if (!(await wait("Router#"))) return;
+        await writeToStream("write erase");
+
+        if (!(await wait("confirm"))) return;
+        await writeToStream(""); // Send Enter
+
+        await new Promise((r) => setTimeout(r, 2000)); // Wait for deletion
+
+        await writeToStream("configure terminal");
+        if (!(await wait("(config)#"))) return;
+
+        await writeToStream("config-register 0x2102");
+        await writeToStream("end");
+
+        if (!(await wait("Router#"))) return;
+        await writeToStream("reload");
+
+        // Handle save prompt (Modified logic)
+        if (!(await wait("System configuration has been modified"))) return;
+        await writeToStream("no");
+
+        if (!(await wait("proceed"))) return;
+        await writeToStream("");
+
+        alert("Router Recovery Complete!");
+      }
+
+      // B. Switch Reset Script [References Page 4-6]
+      async function runSwitchReset() {
+        if (!confirm("Start Switch Reset? (Must be at 'switch:')")) return;
+
+        await writeToStream("delete flash:vlan.dat");
+        if (!(await wait("(y/n)?"))) return;
+        await writeToStream("y");
+
+        await writeToStream("delete flash:config.text");
+        if (!(await wait("(y/n)?"))) return;
+        await writeToStream("y");
+
+        await writeToStream("delete flash:private-config.text");
+        // File might not exist, wait briefly and try to proceed
+        await new Promise((r) => setTimeout(r, 1000));
+        await writeToStream("y");
+
+        await writeToStream("reset");
+        if (!(await wait("(y/n)?"))) return;
+        await writeToStream("y");
+
+        alert("Switch Reset Command Sent! Rebooting...");
+      }
+
+      // C. 9200 Recovery Script [References Page 7-9]
+      async function run9200Recovery() {
+        if (!confirm("Start 9200 Recovery? (Must be at 'switch:')")) return;
+
+        await writeToStream("SWITCH_IGNORE_STARTUP_CFG=1");
+        await new Promise((r) => setTimeout(r, 500));
+        await writeToStream("boot");
+
+        logToTerminal("[INFO] Booting... (Takes approx 5~10 mins)");
+        if (!(await wait("Switch>", 600))) return;
+
+        await writeToStream("en");
+        if (!(await wait("Switch#"))) return;
+
+        await writeToStream("write erase");
+        if (!(await wait("confirm"))) return;
+        await writeToStream("");
+
+        await writeToStream("conf t");
+        if (!(await wait("(config)#"))) return;
+
+        await writeToStream("no system ignore startupconfig switch all");
+        await writeToStream("exit");
+
+        if (!(await wait("Switch#"))) return;
+        await writeToStream("write memory");
+        await new Promise((r) => setTimeout(r, 3000)); // Wait for save
+
+        await writeToStream("reload");
+        // If prompted to save, say no
+        await new Promise((r) => setTimeout(r, 2000));
+        await writeToStream("no");
+        await writeToStream(""); // Confirm Enter just in case
+
+        alert("9200 Recovery Complete!");
+      }
+    </script>
+  </body>
+</html>
