@@ -1,4 +1,4 @@
-; Filename: Cisco_Router_Recovery.ttl
+; Filename: Router_Recovery.ttl
 ; Description: Automates password recovery and factory reset for Cisco Routers based on the provided documentation.
 ; Reference: Page 2-3 of the documentation.
 
