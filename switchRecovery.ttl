@@ -1,0 +1,36 @@
+; Filename: Cisco_Standard_Switch_Reset.ttl
+; Description: Automates factory reset for standard Cisco Switches.
+; Reference: Page 5-6 of the documentation.
+
+timeout = 30
+
+; --- Step 1: Initialize Flash (Optional but good practice to verify) ---
+wait 'switch:'
+sendln 'dir flash:'
+
+; --- Step 2: Delete Configuration Files ---
+; Deleting vlan.dat
+wait 'switch:'
+sendln 'delete flash:vlan.dat'
+wait '(y/n)?'
+sendln 'y'
+
+; Deleting config.text
+wait 'switch:'
+sendln 'delete flash:config.text'
+wait '(y/n)?'
+sendln 'y'
+
+; Deleting private-config.text
+wait 'switch:'
+sendln 'delete flash:private-config.text'
+wait '(y/n)?'
+sendln 'y'
+
+; --- Step 3: Reboot ---
+wait 'switch:'
+sendln 'reset'
+wait '(y/n)?'
+sendln 'y'
+
+messagebox 'Switch reset command sent. The switch will now reboot.' 'Finished'
