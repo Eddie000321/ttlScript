@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cisco Lab Recovery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #0f172a;
+        --surface-color: #1e293b;
+        --surface-hover: #334155;
+        --primary-color: #06b6d4; /* Cyan 500 */
+        --primary-hover: #0891b2; /* Cyan 600 */
+        --accent-color: #8b5cf6; /* Violet 500 */
+        --text-main: #f1f5f9;
+        --text-muted: #94a3b8;
+        --terminal-bg: #000000;
+        --terminal-text: #22c55e;
+        --border-color: #334155;
+        --shadow-elevation: 0 4px 6px -1px rgb(0 0 0 / 0.1),
+          0 2px 4px -2px rgb(0 0 0 / 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Header */
+      header {
+        height: 60px;
+        background: rgba(30, 41, 59, 0.8);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        z-index: 10;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        letter-spacing: -0.025em;
+      }
+
+      .brand-icon {
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        border-radius: 6px;
+      }
+
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        border: 1px solid var(--border-color);
+      }
+
+      .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #ef4444; /* Red for disconnected */
+        box-shadow: 0 0 8px #ef4444;
+        transition: all 0.3s ease;
+      }
+
+      .status-indicator.connected {
+        background-color: #22c55e; /* Green for connected */
+        box-shadow: 0 0 8px #22c55e;
+      }
+
+      .btn-connect {
+        background: var(--primary-color);
+        color: #000;
+        border: none;
+        padding: 6px 16px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-connect:hover {
+        background: var(--primary-hover);
+      }
+
+      /* Main Layout */
+      main {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+
+      /* Left Side - Terminal */
+      .terminal-pane {
+        flex: 1.2;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--border-color);
+        background: var(--terminal-bg);
+        position: relative;
+        min-width: 400px;
+      }
+
+      #terminal {
+        flex: 1;
+        padding: 16px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--terminal-text);
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      
+      #terminal::-webkit-scrollbar {
+        width: 8px;
+      }
+      #terminal::-webkit-scrollbar-thumb {
+        background: #333; 
+        border-radius: 4px;
+      }
+
+      .terminal-input-bar {
+        height: 50px;
+        display: flex;
+        align-items: center;
+        border-top: 1px solid #333;
+        background: #111;
+        padding: 0 12px;
+        gap: 8px;
+      }
+
+      .terminal-prompt {
+        color: var(--primary-color);
+        font-family: "JetBrains Mono", monospace;
+        font-weight: bold;
+      }
+
+      #manualInput {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: white;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 14px;
+        outline: none;
+      }
+
+      .btn-icon {
+        background: transparent;
+        border: 1px solid #444;
+        color: #ccc;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+      .btn-icon:hover:not(:disabled) {
+        background: #333;
+        border-color: #666;
+      }
+      .btn-icon:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Right Side - Controls */
+      .control-pane {
+        flex: 0.8;
+        background: var(--bg-color);
+        display: flex;
+        flex-direction: column;
+        min-width: 350px;
+      }
+
+      .control-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .control-header h2 {
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: var(--text-main);
+      }
+      .control-header p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      .recovery-cards {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .card {
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .card:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-elevation);
+      }
+
+      .card-header {
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        background: rgba(255,255,255,0.02);
+      }
+
+      .card-title {
+        font-weight: 500;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .tag {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(6, 182, 212, 0.1);
+        color: var(--primary-color);
+        border: 1px solid rgba(6, 182, 212, 0.2);
+        font-weight: 600;
+      }
+
+      .card-body {
+        padding: 0 16px;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+        opacity: 0;
+      }
+
+      .card.active .card-body {
+        max-height: 500px; /* arbitrary large value */
+        padding-bottom: 16px;
+        opacity: 1;
+        transition: all 0.3s ease-in;
+      }
+      
+      .card.active .card-header {
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .steps-list {
+        list-style: none;
+        margin: 12px 0;
+      }
+      
+      .steps-list li {
+        position: relative;
+        padding-left: 20px;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        line-height: 1.4;
+      }
+
+      .steps-list li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--border-color);
+      }
+      
+      .steps-list li.highlight::before {
+        background: var(--primary-color);
+        box-shadow: 0 0 6px var(--primary-color);
+      }
+
+      .code-snippet {
+        font-family: "JetBrains Mono", monospace;
+        background: rgba(0,0,0,0.3);
+        padding: 2px 5px;
+        border-radius: 4px;
+        color: var(--primary-color);
+        font-size: 0.85em;
+      }
+
+      .btn-run {
+        width: 100%;
+        padding: 12px;
+        margin-top: 12px;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: transform 0.1s;
+      }
+
+      .btn-run:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+      }
+      
+      .btn-run:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      .btn-run:disabled {
+        background: var(--surface-hover);
+        color: var(--text-muted);
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .break-btn {
+        background: #ef4444; /* Red */
+        margin-top: 8px;
+      }
+      .break-btn:hover:not(:disabled) {
+         background: #dc2626;
+         box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      }
+
+      /* Utilities */
+      .hidden { display: none; }
+      
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon"></div>
+        <span>Cisco Recovery</span>
+      </div>
+      <div class="connection-status">
+        <div id="statusIndicator" class="status-indicator"></div>
+        <span id="statusText">Disconnected</span>
+        <button id="btnConnect" class="btn-connect" onclick="connectSerial()">Connect</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+      <!-- Terminal Pane -->
+      <div class="terminal-pane">
+        <div id="terminal">[SYSTEM] Waiting for connection...
+Please click 'Connect' to select a device.</div>
+        <div class="terminal-input-bar">
+          <span class="terminal-prompt">></span>
+          <input
+            type="text"
+            id="manualInput"
+            placeholder="Type command..."
+            disabled
+            onkeydown="handleInput(event)"
+          />
+          <button id="btnSend" class="btn-icon" onclick="sendManualCommand()" disabled title="Send Command">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </button>
+          <button id="btnBreak" class="btn-icon" onclick="sendBreakSignal()" disabled title="Send BREAK Signal" style="color: #ef4444; border-color: rgba(239,68,68,0.3)">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Control Pane -->
+      <div class="control-pane">
+        <div class="control-header">
+          <h2>Recovery Procedures</h2>
+          <p>Select a device type to begin automatic recovery.</p>
+        </div>
+
+        <div class="recovery-cards">
+          <!-- Router Card -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span>Router Password Recovery</span>
+                <span class="tag">ISR / ASR</span>
+              </div>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--text-muted)">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <div class="card-body">
+              <ul class="steps-list">
+                <li class="highlight">Turn <strong>OFF</strong> the router.</li>
+                <li>Turn it <strong>ON</strong>.</li>
+                <li>Immediately click the <strong style="color: #ef4444">⚡ button</strong> in the terminal bar repeatedly.</li>
+                <li>Wait until you see <span class="code-snippet">rommon 1 ></span>.</li>
+                <li>Then click <strong>Start Recovery</strong> below.</li>
+              </ul>
+              <button id="btnRouter" class="btn-run" onclick="runRouterRecovery(event)" disabled>
+                <span>Start Recovery Sequence</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Switch Card -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span>Switch Factory Reset</span>
+                <span class="tag">2960 / 3560 / 3750</span>
+              </div>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--text-muted)">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <div class="card-body">
+              <ul class="steps-list">
+                <li>Unplug the power cable.</li>
+                <li>Press & Hold the <strong class="code-snippet">MODE</strong> button.</li>
+                <li>Plug power back in (keep holding MODE).</li>
+                <li>Wait ~15s until <span class="code-snippet">switch:</span> appears.</li>
+              </ul>
+              <button id="btnSwitch" class="btn-run" onclick="runSwitchReset(event)" disabled>
+                <span>Start Switch Reset</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 9200 Card -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span>9200 Series Recovery</span>
+                <span class="tag">Catalyst 9200/9300</span>
+              </div>
+               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--text-muted)">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <div class="card-body">
+              <ul class="steps-list">
+                <li>Unplug power. Hold <strong class="code-snippet">MODE</strong> button.</li>
+                <li>Reconnect power. Hold MODE until <span class="code-snippet">switch:</span> prompt.</li>
+                <li>This process takes about 10 minutes (full boot).</li>
+              </ul>
+              <button id="btn9200" class="btn-run" onclick="run9200Recovery(event)" disabled>
+                <span>Start 9200 Recovery</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      let port, writer, reader;
+      let globalBuffer = "";
+      let keepReading = false;
+
+      function toggleCard(card) {
+        // Close other cards
+        document.querySelectorAll('.card').forEach(c => {
+          if (c !== card) c.classList.remove('active');
+        });
+        // Toggle current
+        card.classList.toggle('active');
+      }
+
+      async function connectSerial() {
+        if (!navigator.serial) {
+          alert("Your browser does not support Web Serial API. Please use Chrome or Edge.");
+          return;
+        }
+        try {
+          port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 9600 });
+          
+          logToTerminal("\n[SYSTEM] Serial port connected successfully.");
+          
+          document.getElementById("statusText").innerText = "Connected";
+          document.getElementById("statusIndicator").classList.add("connected");
+          document.getElementById("btnConnect").style.display = 'none'; // Hide connect button
+          
+          enableControls(true);
+          
+          keepReading = true;
+          readLoop();
+        } catch (err) {
+          logToTerminal("\n[ERROR] Connection failed: " + err);
+        }
+      }
+
+      function enableControls(enabled) {
+        const ids = [
+          "manualInput",
+          "btnSend",
+          "btnBreak",
+          "btnRouter",
+          "btnSwitch",
+          "btn9200",
+        ];
+        ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
+      }
+
+      async function readLoop() {
+        const textDecoder = new TextDecoderStream();
+        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        reader = textDecoder.readable.getReader();
+
+        try {
+          while (keepReading) {
+            const { value, done } = await reader.read();
+            if (done) {
+              // Allow the serial port to be closed later.
+              reader.releaseLock();
+              break;
+            }
+            if (value) {
+              globalBuffer += value;
+              logToTerminal(value, true);
+            }
+          }
+        } catch (e) {
+          console.error(e);
+          logToTerminal("\n[ERROR] Read loop error: " + e);
+        }
+      }
+
+      async function writeToStream(data) {
+        if (!port || !port.writable) return;
+        const textEncoder = new TextEncoderStream();
+        const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+        const writer = textEncoder.writable.getWriter();
+        await writer.write(data + "\r");
+        writer.close();
+      }
+
+      async function sendBreakSignal() {
+        if (!port) return;
+        logToTerminal("\n[SYSTEM] Sending BREAK Signal...");
+        await port.setSignals({ break: true });
+        await new Promise((r) => setTimeout(r, 250));
+        await port.setSignals({ break: false });
+      }
+
+      function handleInput(e) {
+        if (e.key === "Enter") sendManualCommand();
+      }
+
+      async function sendManualCommand() {
+        const input = document.getElementById("manualInput");
+        if (input.value) {
+          await writeToStream(input.value);
+          input.value = "";
+        }
+      }
+
+      // --- Helper: Wait for pattern in buffer ---
+      // --- Helper: Wait for pattern in buffer ---
+      async function wait(pattern, timeoutSec = 30) {
+        logToTerminal(`\n[WAITING] Expecting: "${pattern}"...`);
+        const start = Date.now();
+        // Do NOT clear globalBuffer at start. We might have received the data already.
+        
+        while (Date.now() - start < timeoutSec * 1000) {
+          const idx = globalBuffer.indexOf(pattern);
+          if (idx !== -1) {
+            // Found it! Consume the buffer up to this point to avoid re-matching old data
+            // but keep any *subsequent* data that might have arrived.
+            globalBuffer = globalBuffer.substring(idx + pattern.length);
+            return true;
+          }
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        logToTerminal("\n[TIMEOUT] Expected pattern not found.", false);
+        alert(`Timeout waiting for: "${pattern}".\nPlease check the device state.`);
+        return false;
+      }
+
+      function logToTerminal(msg, isRaw = false) {
+        const term = document.getElementById("terminal");
+        if (isRaw) {
+           term.textContent += msg;
+        } else {
+           term.textContent += msg + "\n";
+        }
+        term.scrollTop = term.scrollHeight;
+      }
+
+      // --- Recovery Procedures ---
+
+      async function runRouterRecovery(e) {
+        if (e) e.stopPropagation(); // Setup to prevent card toggle
+        if (!confirm("Start Router Password Recovery Sequence?")) return;
+        
+        logToTerminal("\n[INFO] Starting Router Recovery...");
+        
+        await writeToStream("confreg 0x2142");
+        
+        if (!(await wait("rommon 2 >"))) return;
+        
+        await writeToStream("reset");
+        logToTerminal("\n[INFO] Router is rebooting. This may take a while...");
+        
+        // Wait for Initial Config Dialog
+        if (!(await wait("initial configuration dialog", 600))) return;
+        
+        await writeToStream("no"); // No to initial config
+        await writeToStream(""); // Press Return
+        
+        if (!(await wait("Router>"))) return;
+        
+        await writeToStream("enable"); // Go to Privileged Exec
+        
+        if (!(await wait("Router#"))) return;
+        
+        // Skip copy start run, just erase existing config if that's the goal of recovery
+        // Or if preserving config: copy startup-config running-config
+        // The original logic was destructive (write erase), let's stick to that for "Recovery/Reset"
+        
+        await writeToStream("write erase");
+        // Sometimes it asks for confirmation, sometimes not.
+        // We catch the "Erase of nvram" or "confirm"
+        // Let's just wait a bit and send enter if we suspect it might be stuck, 
+        // but robust wait is better. We'll wait for ']' or 'confirm' or '?' 
+        // Actually, simplest is to wait for the confirmation prompt generally.
+        if (await wait("confirm", 5)) {
+            await writeToStream("");
+        } else if (await wait("]", 2)) { 
+            // Often '[confirm]'
+            await writeToStream("");
+        }
+        
+        await new Promise((r) => setTimeout(r, 2000));
+        
+        await writeToStream("conf t");
+        if (!(await wait("(config)#"))) return;
+        
+        await writeToStream("config-register 0x2102"); // Restore register
+        await writeToStream("end");
+        
+        if (!(await wait("Router#"))) return;
+        
+        await writeToStream("reload");
+        // Check if modified config save prompt appears
+        // System configuration has been modified. Save? [yes/no]: 
+        
+        // We'll wait a bit to see if prompt appears, or just blind send "no"
+        await new Promise((r) => setTimeout(r, 1000));
+        await writeToStream("no"); 
+        
+        await writeToStream(""); // Confirm reload
+        
+        alert("Router Recovery Complete! The router is rebooting with factory settings.");
+      }
+
+      async function runSwitchReset(e) {
+        if (e) e.stopPropagation();
+        if (!confirm("Are you sure you want to FACTORY RESET this switch?")) return;
+        
+        logToTerminal("\n[INFO] Starting Switch Factory Reset...");
+        
+        // Assumes we are at "switch:" prompt
+        await writeToStream("flash_init");
+        await new Promise((r) => setTimeout(r, 2000)); // wait for init
+        
+        await writeToStream("delete flash:vlan.dat");
+        if (await wait("(y/n)?", 5)) {
+           await writeToStream("y");
+        }
+        
+        await writeToStream("delete flash:config.text");
+        if (await wait("(y/n)?", 5)) {
+           await writeToStream("y");
+        }
+        
+        await writeToStream("delete flash:private-config.text");
+        if (await wait("(y/n)?", 5)) {
+           await writeToStream("y");
+        }
+        
+        await writeToStream("reset");
+        if (await wait("(y/n)?", 5)) {
+           await writeToStream("y");
+        }
+        
+        alert("Switch is resetting...");
+      }
+
+      async function run9200Recovery(e) {
+        if (e) e.stopPropagation();
+        if (!confirm("Start Catalyst 9200 Recovery?")) return;
+        
+        logToTerminal("\n[INFO] Starting 9200 Recovery...");
+        
+        // Assumes switch: prompt
+        await writeToStream("SWITCH_IGNORE_STARTUP_CFG=1");
+        await new Promise((r) => setTimeout(r, 500));
+        
+        await writeToStream("boot");
+        logToTerminal("\n[INFO] Booting image... Please wait (approx 5-10 mins).");
+        
+        // Waiting for boot
+        if (!(await wait("Switch", 900))) return; // 'Switch>' or 'Switch#'
+        
+        await writeToStream("enable");
+        if (!(await wait("Switch#"))) return;
+        
+        await writeToStream("write erase");
+        await new Promise((r) => setTimeout(r, 1000));
+        await writeToStream(""); // Confirm
+        
+        await writeToStream("conf t");
+        if (!(await wait("(config)#"))) return;
+        
+        await writeToStream("no system ignore startupconfig switch all");
+        await writeToStream("exit");
+        
+        if (!(await wait("Switch#"))) return;
+        await writeToStream("write memory"); // Save empty config
+        
+        await new Promise((r) => setTimeout(r, 3000));
+        await writeToStream("reload");
+        
+        await new Promise((r) => setTimeout(r, 1000));
+        await writeToStream("no"); // Save? No
+        await writeToStream("");   // Confirm proceed
+        
+        alert("9200 Recovery Finished! Device is rebooting.");
+      }
+    </script>
+  </body>
+</html>
