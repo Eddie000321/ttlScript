@@ -377,7 +377,7 @@
                 <li>
                   Immediately press <strong>Ctrl + Break</strong> (or use Break
                   button if available) repeatedly. <br /><button
-                    onclick="sendBreakSignal()"
+                    onclick="sendBreakSignal(event)"
                     class="btn-connect"
                     style="margin-top: 5px; background: #ef4444"
                   >
@@ -583,7 +583,8 @@
         await writeToStream(cmd + "\r");
       }
 
-      async function sendBreakSignal() {
+      async function sendBreakSignal(e) {
+        if (e) e.stopPropagation();
         if (!port) return;
         term.write("\r\n[SYSTEM] Sending BREAK Signal...\r\n");
         await port.setSignals({ break: true });
