@@ -377,10 +377,12 @@
               </div>
             </div>
             <div class="card-body">
-              <ul class="steps-list">
-                <li class="highlight">Already logged into the router CLI.</li>
-                <li>This will erase all config and reload.</li>
-              </ul>
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
+                <strong>Password Test Order:</strong>
+                <span class="code-snippet">(empty)</span> →
+                <span class="code-snippet">class</span> →
+                <span class="code-snippet">cisco</span>
+              </div>
               <button
                 id="btnRouterQuick"
                 class="btn-run"
@@ -401,10 +403,13 @@
               </div>
             </div>
             <div class="card-body">
-              <ul class="steps-list">
-                <li class="highlight">Already logged into the switch CLI.</li>
-                <li>Includes <span class="code-snippet">delete vlan.dat</span> (VLAN info).</li>
-              </ul>
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
+                <strong>Password Test Order:</strong>
+                <span class="code-snippet">(empty)</span> →
+                <span class="code-snippet">class</span> →
+                <span class="code-snippet">cisco</span>
+                <div style="margin-top:6px;">+ <span class="code-snippet">delete vlan.dat</span></div>
+              </div>
               <button
                 id="btnSwitchQuick"
                 class="btn-run"
@@ -476,7 +481,8 @@
                 <li>Unplug the power cable.</li>
                 <li>
                   Press & Hold the
-                  <strong class="code-snippet">MODE</strong> button.
+                  <strong class="code-snippet">MODE</strong> button
+                  <span style="color:#94a3b8;font-size:0.85em;">(Light Gray Button)</span>.
                 </li>
                 <li>Plug power back in (keep holding MODE).</li>
                 <li>
@@ -508,7 +514,8 @@
               <ul class="steps-list">
                 <li>
                   Unplug power. Hold
-                  <strong class="code-snippet">MODE</strong> button.
+                  <strong class="code-snippet">MODE</strong> button
+                  <span style="color:#94a3b8;font-size:0.85em;">(Light Gray Button)</span>.
                 </li>
                 <li>
                   Reconnect power. Hold MODE until
@@ -794,14 +801,39 @@
 
       // --- Quick Reset (Connected Mode) ---
 
+      // Helper: Try entering privileged mode with common passwords
+      async function tryEnableWithPasswords() {
+        await sendCmd("enable");
+        
+        // Check if password prompt appears
+        if (await wait("Password:", 2)) {
+          term.write("\r\n[SCRIPT] Trying empty password...\r\n");
+          await sendCmd(""); // Try empty password
+          
+          if (await wait("Password:", 2)) {
+            term.write("\r\n[SCRIPT] Trying 'class'...\r\n");
+            await sendCmd("class"); // Try class
+            
+            if (await wait("Password:", 2)) {
+              term.write("\r\n[SCRIPT] Trying 'cisco'...\r\n");
+              await sendCmd("cisco"); // Try cisco
+            }
+          }
+        }
+        
+        // Verify we're in privileged mode
+        await new Promise((r) => setTimeout(r, 500));
+        return true; // Continue anyway, will fail later if not in correct mode
+      }
+
       async function runRouterQuickReset(e) {
         if (e) e.stopPropagation();
         if (!confirm("Quick Reset Router? This will ERASE all config!")) return;
 
         term.write("\r\n[INFO] Starting Router Quick Reset...\r\n");
+        term.write("\r\n[INFO] Testing passwords: (empty), class, cisco\r\n");
 
-        await sendCmd("enable");
-        await new Promise((r) => setTimeout(r, 500));
+        await tryEnableWithPasswords();
 
         await sendCmd("write erase");
         if (await wait("confirm", 5)) {
@@ -825,9 +857,9 @@
         if (!confirm("Quick Reset Switch? This will ERASE all config + VLAN info!")) return;
 
         term.write("\r\n[INFO] Starting Switch Quick Reset...\r\n");
+        term.write("\r\n[INFO] Testing passwords: (empty), class, cisco\r\n");
 
-        await sendCmd("enable");
-        await new Promise((r) => setTimeout(r, 500));
+        await tryEnableWithPasswords();
 
         await sendCmd("write erase");
         if (await wait("confirm", 5)) {
