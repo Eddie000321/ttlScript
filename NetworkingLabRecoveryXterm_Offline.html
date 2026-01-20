@@ -533,6 +533,55 @@
         cursor: not-allowed;
         box-shadow: none;
       }
+
+      /* Progress Indicator */
+      .progress-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 0;
+        margin-top: 8px;
+      }
+
+      .progress-step {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--border-color);
+        transition: all 0.3s ease;
+      }
+
+      .progress-step.active {
+        background: var(--primary-color);
+        box-shadow: 0 0 10px var(--primary-color);
+        animation: pulse 1s infinite;
+      }
+
+      .progress-step.complete {
+        background: #22c55e;
+        box-shadow: 0 0 8px #22c55e;
+      }
+
+      .progress-step.error {
+        background: #ef4444;
+        box-shadow: 0 0 8px #ef4444;
+      }
+
+      .progress-label {
+        font-size: 0.85em;
+        color: var(--text-muted);
+        margin-left: 8px;
+      }
+
+      .progress-label.error {
+        color: #ef4444;
+        font-weight: 600;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.2); }
+      }
     </style>
     <!-- Xterm.js JS -->
     <script>
@@ -604,10 +653,22 @@
             </div>
             <div class="card-body">
               <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
-                <strong>Password Test Order:</strong>
+                <strong>Password Test:</strong>
                 <span class="code-snippet">(empty)</span> →
                 <span class="code-snippet">class</span> →
                 <span class="code-snippet">cisco</span>
+              </div>
+              <div style="padding:0 0 10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong>Steps:</strong>
+                <span class="code-snippet">enable</span> →
+                <span class="code-snippet">write erase</span> →
+                <span class="code-snippet">reload</span>
+              </div>
+              <div id="progressRouterQuick" class="progress-bar" style="display:none;">
+                <div class="progress-step" data-step="1"></div>
+                <div class="progress-step" data-step="2"></div>
+                <div class="progress-step" data-step="3"></div>
+                <span class="progress-label">Ready</span>
               </div>
               <button
                 id="btnRouterQuick"
@@ -630,11 +691,24 @@
             </div>
             <div class="card-body">
               <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
-                <strong>Password Test Order:</strong>
+                <strong>Password Test:</strong>
                 <span class="code-snippet">(empty)</span> →
                 <span class="code-snippet">class</span> →
                 <span class="code-snippet">cisco</span>
-                <div style="margin-top:6px;">+ <span class="code-snippet">delete vlan.dat</span></div>
+              </div>
+              <div style="padding:0 0 10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong>Steps:</strong>
+                <span class="code-snippet">enable</span> →
+                <span class="code-snippet">write erase</span> →
+                <span class="code-snippet">delete vlan.dat</span> →
+                <span class="code-snippet">reload</span>
+              </div>
+              <div id="progressSwitchQuick" class="progress-bar" style="display:none;">
+                <div class="progress-step" data-step="1"></div>
+                <div class="progress-step" data-step="2"></div>
+                <div class="progress-step" data-step="3"></div>
+                <div class="progress-step" data-step="4"></div>
+                <span class="progress-label">Ready</span>
               </div>
               <button
                 id="btnSwitchQuick"
@@ -1027,6 +1101,60 @@
 
       // --- Quick Reset (Connected Mode) ---
 
+      // Progress helper functions
+      function showProgress(progressId) {
+        const bar = document.getElementById(progressId);
+        if (bar) {
+          bar.style.display = 'flex';
+          bar.querySelectorAll('.progress-step').forEach(s => {
+            s.classList.remove('active', 'complete', 'error');
+          });
+          bar.querySelector('.progress-label').textContent = 'Starting...';
+          bar.querySelector('.progress-label').classList.remove('error');
+        }
+      }
+
+      function updateProgress(progressId, step, label) {
+        const bar = document.getElementById(progressId);
+        if (bar) {
+          const steps = bar.querySelectorAll('.progress-step');
+          steps.forEach((s, i) => {
+            if (i + 1 < step) {
+              s.classList.remove('active');
+              s.classList.add('complete');
+            } else if (i + 1 === step) {
+              s.classList.add('active');
+            }
+          });
+          bar.querySelector('.progress-label').textContent = label;
+        }
+      }
+
+      function completeProgress(progressId) {
+        const bar = document.getElementById(progressId);
+        if (bar) {
+          bar.querySelectorAll('.progress-step').forEach(s => {
+            s.classList.remove('active');
+            s.classList.add('complete');
+          });
+          bar.querySelector('.progress-label').textContent = '✓ Complete!';
+        }
+      }
+
+      function errorProgress(progressId, message) {
+        const bar = document.getElementById(progressId);
+        if (bar) {
+          const activeStep = bar.querySelector('.progress-step.active');
+          if (activeStep) {
+            activeStep.classList.remove('active');
+            activeStep.classList.add('error');
+          }
+          const label = bar.querySelector('.progress-label');
+          label.textContent = '✗ ' + message + ' - Retry!';
+          label.classList.add('error');
+        }
+      }
+
       // Helper: Try entering privileged mode with common passwords
       async function tryEnableWithPasswords() {
         await sendCmd("enable");
@@ -1049,18 +1177,25 @@
         
         // Verify we're in privileged mode
         await new Promise((r) => setTimeout(r, 500));
-        return true; // Continue anyway, will fail later if not in correct mode
+        return true;
       }
 
       async function runRouterQuickReset(e) {
         if (e) e.stopPropagation();
         if (!confirm("Quick Reset Router? This will ERASE all config!")) return;
 
-        term.write("\r\n[INFO] Starting Router Quick Reset...\r\n");
-        term.write("\r\n[INFO] Testing passwords: (empty), class, cisco\r\n");
+        const progressId = 'progressRouterQuick';
+        showProgress(progressId);
 
+        term.write("\r\n[INFO] Starting Router Quick Reset...\r\n");
+
+        // Step 1: Enable
+        updateProgress(progressId, 1, 'Entering privileged mode...');
+        term.write("\r\n[INFO] Testing passwords: (empty), class, cisco\r\n");
         await tryEnableWithPasswords();
 
+        // Step 2: Write Erase
+        updateProgress(progressId, 2, 'Erasing config...');
         await sendCmd("write erase");
         if (await wait("confirm", 5)) {
           await sendCmd("");
@@ -1069,12 +1204,16 @@
         }
 
         await new Promise((r) => setTimeout(r, 2000));
+
+        // Step 3: Reload
+        updateProgress(progressId, 3, 'Reloading...');
         await sendCmd("reload");
 
         await new Promise((r) => setTimeout(r, 1000));
         await sendCmd("no");
         await sendCmd("");
 
+        completeProgress(progressId);
         alert("Router Quick Reset Complete! Device is rebooting.");
       }
 
@@ -1082,11 +1221,18 @@
         if (e) e.stopPropagation();
         if (!confirm("Quick Reset Switch? This will ERASE all config + VLAN info!")) return;
 
-        term.write("\r\n[INFO] Starting Switch Quick Reset...\r\n");
-        term.write("\r\n[INFO] Testing passwords: (empty), class, cisco\r\n");
+        const progressId = 'progressSwitchQuick';
+        showProgress(progressId);
 
+        term.write("\r\n[INFO] Starting Switch Quick Reset...\r\n");
+
+        // Step 1: Enable
+        updateProgress(progressId, 1, 'Entering privileged mode...');
+        term.write("\r\n[INFO] Testing passwords: (empty), class, cisco\r\n");
         await tryEnableWithPasswords();
 
+        // Step 2: Write Erase
+        updateProgress(progressId, 2, 'Erasing config...');
         await sendCmd("write erase");
         if (await wait("confirm", 5)) {
           await sendCmd("");
@@ -1096,7 +1242,8 @@
 
         await new Promise((r) => setTimeout(r, 2000));
 
-        // Delete VLAN info (key difference from router!)
+        // Step 3: Delete VLAN
+        updateProgress(progressId, 3, 'Deleting VLAN data...');
         await sendCmd("delete vlan.dat");
         if (await wait("Delete", 3)) {
           await sendCmd(""); // Confirm filename
@@ -1106,12 +1253,16 @@
         }
 
         await new Promise((r) => setTimeout(r, 1000));
+
+        // Step 4: Reload
+        updateProgress(progressId, 4, 'Reloading...');
         await sendCmd("reload");
 
         await new Promise((r) => setTimeout(r, 1000));
         await sendCmd("no");
         await sendCmd("");
 
+        completeProgress(progressId);
         alert("Switch Quick Reset Complete! Device is rebooting.");
       }
     </script>
