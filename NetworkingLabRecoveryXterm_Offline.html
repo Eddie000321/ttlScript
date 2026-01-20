@@ -561,7 +561,7 @@
     <header>
       <div class="brand">
         <div class="brand-icon"></div>
-        <span>Cisco Recovery (Pro)</span>
+        <span>Networking Lab Assistant (Offline)</span>
       </div>
       <div class="connection-status">
         <div id="statusIndicator" class="status-indicator"></div>
@@ -583,11 +583,71 @@
       <!-- Control Pane -->
       <div class="control-pane">
         <div class="control-header">
-          <h2>Recovery Procedures</h2>
-          <p>Select a device type to begin automatic recovery.</p>
+          <h2>Lab Procedures</h2>
+          <p>Select a procedure for your device.</p>
         </div>
 
         <div class="recovery-cards">
+          <!-- Section: Quick Reset -->
+          <div style="margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,0.1);border-radius:8px;border:1px solid rgba(34,197,94,0.2);">
+            <strong style="color:#22c55e;">✓ Quick Reset</strong>
+            <span style="color:#94a3b8;font-size:0.85em;"> — Password known / Already logged in</span>
+          </div>
+
+          <!-- Router Quick Reset Card -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#1a1a1a;border:1px solid #444;margin-right:6px;"></span>
+                <span>Router Quick Reset</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <ul class="steps-list">
+                <li class="highlight">Already logged into the router CLI.</li>
+                <li>This will erase all config and reload.</li>
+              </ul>
+              <button
+                id="btnRouterQuick"
+                class="btn-run"
+                onclick="runRouterQuickReset(event)"
+                disabled
+              >
+                <span>Quick Reset Router</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Switch Quick Reset Card -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0f0f0;border:1px solid #999;margin-right:6px;"></span>
+                <span>Switch Quick Reset</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <ul class="steps-list">
+                <li class="highlight">Already logged into the switch CLI.</li>
+                <li>Includes <span class="code-snippet">delete vlan.dat</span> (VLAN info).</li>
+              </ul>
+              <button
+                id="btnSwitchQuick"
+                class="btn-run"
+                onclick="runSwitchQuickReset(event)"
+                disabled
+              >
+                <span>Quick Reset Switch</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Section: Password Recovery / Factory Reset -->
+          <div style="margin:16px 0 8px 0;padding:8px 12px;background:rgba(239,68,68,0.1);border-radius:8px;border:1px solid rgba(239,68,68,0.2);">
+            <strong style="color:#ef4444;">⚠ Password Recovery / Factory Reset</strong>
+            <span style="color:#94a3b8;font-size:0.85em;"> — Password unknown / Locked out</span>
+          </div>
+
           <!-- Router Card -->
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
@@ -689,56 +749,6 @@
                 disabled
               >
                 <span>Start 9200 Recovery</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Router Quick Reset Card -->
-          <div class="card" onclick="toggleCard(this)">
-            <div class="card-header">
-              <div class="card-title">
-                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#1a1a1a;border:1px solid #444;margin-right:6px;"></span>
-                <span>Router Quick Reset</span>
-                <span class="tag" style="background: rgba(34,197,94,0.1); color: #22c55e; border-color: rgba(34,197,94,0.2);">Connected</span>
-              </div>
-            </div>
-            <div class="card-body">
-              <ul class="steps-list">
-                <li class="highlight">Already logged into the router CLI.</li>
-                <li>This will erase all config and reload.</li>
-              </ul>
-              <button
-                id="btnRouterQuick"
-                class="btn-run"
-                onclick="runRouterQuickReset(event)"
-                disabled
-              >
-                <span>Quick Reset Router</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Switch Quick Reset Card -->
-          <div class="card" onclick="toggleCard(this)">
-            <div class="card-header">
-              <div class="card-title">
-                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0f0f0;border:1px solid #999;margin-right:6px;"></span>
-                <span>Switch Quick Reset</span>
-                <span class="tag" style="background: rgba(34,197,94,0.1); color: #22c55e; border-color: rgba(34,197,94,0.2);">Connected</span>
-              </div>
-            </div>
-            <div class="card-body">
-              <ul class="steps-list">
-                <li class="highlight">Already logged into the switch CLI.</li>
-                <li>Includes <span class="code-snippet">delete vlan.dat</span> (VLAN info).</li>
-              </ul>
-              <button
-                id="btnSwitchQuick"
-                class="btn-run"
-                onclick="runSwitchQuickReset(event)"
-                disabled
-              >
-                <span>Quick Reset Switch</span>
               </button>
             </div>
           </div>
