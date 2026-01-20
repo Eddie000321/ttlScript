@@ -411,6 +411,25 @@
         </div>
 
         <div class="recovery-cards">
+          <!-- Utility Buttons -->
+          <div style="margin-bottom:12px;padding:12px;background:rgba(139,92,246,0.1);border-radius:8px;border:1px solid rgba(139,92,246,0.2);">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <strong style="color:#a78bfa;">🔧 Utilities</strong>
+              <button
+                id="btnTestConnection"
+                onclick="toggleAutoEnter(event)"
+                class="btn-connect"
+                style="background:#8b5cf6;font-size:0.8em;padding:4px 10px;"
+                disabled
+              >
+                ▶ Start Auto-Enter
+              </button>
+            </div>
+            <div style="color:#94a3b8;font-size:0.75em;margin-top:6px;">
+              Sends Enter key every 500ms to check device response. Click again to stop.
+            </div>
+          </div>
+
           <!-- Section: Quick Reset -->
           <div style="margin-bottom:8px;padding:8px 12px;background:rgba(34,197,94,0.1);border-radius:8px;border:1px solid rgba(34,197,94,0.2);">
             <strong style="color:#22c55e;">✓ Quick Reset</strong>
@@ -685,7 +704,7 @@
       }
 
       function enableControls(enabled) {
-        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick"];
+        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick", "btnTestConnection"];
         ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
       }
 
@@ -734,6 +753,37 @@
         await port.setSignals({ break: true });
         await new Promise((r) => setTimeout(r, 250));
         await port.setSignals({ break: false });
+      }
+
+      let autoEnterInterval = null;
+
+      function toggleAutoEnter(e) {
+        if (e) e.stopPropagation();
+        if (!port) return;
+
+        const btn = document.getElementById('btnTestConnection');
+        
+        if (autoEnterInterval) {
+          // Stop
+          clearInterval(autoEnterInterval);
+          autoEnterInterval = null;
+          btn.textContent = '▶ Start Auto-Enter';
+          btn.style.background = '#8b5cf6';
+          term.write("\r\n[SYSTEM] Auto-Enter stopped.\r\n");
+        } else {
+          // Start
+          term.write("\r\n[SYSTEM] Auto-Enter started (every 500ms). Click again to stop.\r\n");
+          btn.textContent = '■ Stop Auto-Enter';
+          btn.style.background = '#ef4444';
+          
+          // Send immediately
+          sendCmd("");
+          
+          // Then every 500ms
+          autoEnterInterval = setInterval(() => {
+            sendCmd("");
+          }, 500);
+        }
       }
 
       // --- Helper: Wait for pattern in buffer ---
