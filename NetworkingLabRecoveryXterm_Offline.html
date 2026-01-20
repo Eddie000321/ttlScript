@@ -592,6 +592,7 @@
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
               <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#1a1a1a;border:1px solid #444;margin-right:6px;"></span>
                 <span>Router Password Recovery</span>
                 <span class="tag">ISR / ASR</span>
               </div>
@@ -631,6 +632,7 @@
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
               <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0f0f0;border:1px solid #999;margin-right:6px;"></span>
                 <span>Switch Factory Reset</span>
                 <span class="tag">2960 / 3560 / 3750</span>
               </div>
@@ -663,6 +665,7 @@
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
               <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#a8a29e;border:1px solid #78716c;margin-right:6px;"></span>
                 <span>9200 Series Recovery</span>
                 <span class="tag">Catalyst 9200/9300</span>
               </div>
@@ -686,6 +689,56 @@
                 disabled
               >
                 <span>Start 9200 Recovery</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Router Quick Reset Card -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#1a1a1a;border:1px solid #444;margin-right:6px;"></span>
+                <span>Router Quick Reset</span>
+                <span class="tag" style="background: rgba(34,197,94,0.1); color: #22c55e; border-color: rgba(34,197,94,0.2);">Connected</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <ul class="steps-list">
+                <li class="highlight">Already logged into the router CLI.</li>
+                <li>This will erase all config and reload.</li>
+              </ul>
+              <button
+                id="btnRouterQuick"
+                class="btn-run"
+                onclick="runRouterQuickReset(event)"
+                disabled
+              >
+                <span>Quick Reset Router</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Switch Quick Reset Card -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0f0f0;border:1px solid #999;margin-right:6px;"></span>
+                <span>Switch Quick Reset</span>
+                <span class="tag" style="background: rgba(34,197,94,0.1); color: #22c55e; border-color: rgba(34,197,94,0.2);">Connected</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <ul class="steps-list">
+                <li class="highlight">Already logged into the switch CLI.</li>
+                <li>Includes <span class="code-snippet">delete vlan.dat</span> (VLAN info).</li>
+              </ul>
+              <button
+                id="btnSwitchQuick"
+                class="btn-run"
+                onclick="runSwitchQuickReset(event)"
+                disabled
+              >
+                <span>Quick Reset Switch</span>
               </button>
             </div>
           </div>
@@ -767,7 +820,7 @@
       }
 
       function enableControls(enabled) {
-        const ids = ["btnRouter", "btnSwitch", "btn9200"];
+        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick"];
         ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
       }
 
@@ -953,6 +1006,71 @@
         await sendCmd("");
 
         alert("9200 Recovery Finished!");
+      }
+
+      // --- Quick Reset (Connected Mode) ---
+
+      async function runRouterQuickReset(e) {
+        if (e) e.stopPropagation();
+        if (!confirm("Quick Reset Router? This will ERASE all config!")) return;
+
+        term.write("\r\n[INFO] Starting Router Quick Reset...\r\n");
+
+        await sendCmd("enable");
+        await new Promise((r) => setTimeout(r, 500));
+
+        await sendCmd("write erase");
+        if (await wait("confirm", 5)) {
+          await sendCmd("");
+        } else if (await wait("]", 2)) {
+          await sendCmd("");
+        }
+
+        await new Promise((r) => setTimeout(r, 2000));
+        await sendCmd("reload");
+
+        await new Promise((r) => setTimeout(r, 1000));
+        await sendCmd("no");
+        await sendCmd("");
+
+        alert("Router Quick Reset Complete! Device is rebooting.");
+      }
+
+      async function runSwitchQuickReset(e) {
+        if (e) e.stopPropagation();
+        if (!confirm("Quick Reset Switch? This will ERASE all config + VLAN info!")) return;
+
+        term.write("\r\n[INFO] Starting Switch Quick Reset...\r\n");
+
+        await sendCmd("enable");
+        await new Promise((r) => setTimeout(r, 500));
+
+        await sendCmd("write erase");
+        if (await wait("confirm", 5)) {
+          await sendCmd("");
+        } else if (await wait("]", 2)) {
+          await sendCmd("");
+        }
+
+        await new Promise((r) => setTimeout(r, 2000));
+
+        // Delete VLAN info (key difference from router!)
+        await sendCmd("delete vlan.dat");
+        if (await wait("Delete", 3)) {
+          await sendCmd(""); // Confirm filename
+        }
+        if (await wait("confirm", 3)) {
+          await sendCmd(""); // Confirm delete
+        }
+
+        await new Promise((r) => setTimeout(r, 1000));
+        await sendCmd("reload");
+
+        await new Promise((r) => setTimeout(r, 1000));
+        await sendCmd("no");
+        await sendCmd("");
+
+        alert("Switch Quick Reset Complete! Device is rebooting.");
       }
     </script>
   </body>
