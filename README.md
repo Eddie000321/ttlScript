@@ -9,6 +9,7 @@ A single-file web application for automating Cisco device recovery and reset pro
 
 ### 🔧 Utilities
 - **Auto-Enter**: Sends Enter key every 500ms to test device connectivity
+- **Dark/Light Mode**: Toggle theme with 🌙/☀️ button (preference saved to localStorage)
 
 ### ✓ Quick Reset (Password Known)
 For devices you can already access via CLI.
