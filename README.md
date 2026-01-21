@@ -5,6 +5,8 @@ A single-file web application for automating Cisco device recovery and reset pro
 ![Browser Support](https://img.shields.io/badge/Browser-Chrome%20%7C%20Edge-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+> 📖 **See [FLOW.md](FLOW.md) for detailed step-by-step button flow examples.**
+
 ## Features
 
 ### 🔧 Utilities
