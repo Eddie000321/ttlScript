@@ -484,7 +484,6 @@
             <div class="card-body">
               <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
                 <strong>Password Test:</strong>
-                <span class="code-snippet">(empty)</span> →
                 <span class="code-snippet">cisco</span> →
                 <span class="code-snippet">class</span>
               </div>
@@ -522,7 +521,6 @@
             <div class="card-body">
               <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
                 <strong>Password Test:</strong>
-                <span class="code-snippet">(empty)</span> →
                 <span class="code-snippet">cisco</span> →
                 <span class="code-snippet">class</span>
               </div>
@@ -1070,16 +1068,23 @@
              return;
         }
 
+        // Track the final boot result (could be bootRes or bootRes2)
+        let finalBootRes = bootRes;
+
         // If we in rommon?
         if (bootRes.type === "rommon") {
              term.write("\r\n[WARN] Landed in ROMMON again? Trying boot...\r\n");
              await sendCmd("boot");
              const bootRes2 = await smartBootWait(600);
-             if (bootRes2.type !== "prompt") return;
+             if (bootRes2.type !== "prompt") {
+                 alert("Failed to boot from ROMMON.");
+                 return;
+             }
+             finalBootRes = bootRes2; // Use the new result
         }
 
         // Ensure enabled
-        if (bootRes.prompt.includes(">") || bootRes.prompt.includes("Switch>")) {
+        if (finalBootRes.prompt && (finalBootRes.prompt.includes(">") || finalBootRes.prompt.includes("Switch>"))) {
              await sendCmd("enable");
              if (!(await waitForAny(["Router#", "Switch#"], 10))) return;
         }
@@ -1316,23 +1321,12 @@
         }
 
         // Case 3: Asked for password. 
-        // Logic: Try empty -> 'class' -> 'cisco'
+        // NOTE: Cisco disconnects session after 3 failed attempts
+        // Only try 2 passwords to leave room for user retry
+        // Order: cisco -> class (most common lab passwords)
         
-        // 1. Try Empty
+        // 1. Try 'cisco' (most common)
         if (result && result.match.includes("Password:")) {
-            term.write("\r\n[SCRIPT] Trying empty password...\r\n");
-            globalBuffer = ""; // Clear before attempt
-            await sendCmd("");
-            
-            result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
-            if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                term.write("\r\n[SCRIPT] Empty password worked!\r\n");
-                return true;
-            }
-        }
-
-        // 2. Try 'cisco'
-        if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
             term.write("\r\n[SCRIPT] Trying 'cisco'...\r\n");
             globalBuffer = ""; // Clear before attempt
             await sendCmd("cisco");
@@ -1344,9 +1338,9 @@
             }
         }
 
-        // 3. Try 'class'
+        // 2. Try 'class' (second attempt - LAST chance before session may disconnect)
         if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
-            term.write("\r\n[SCRIPT] Trying 'class'...\r\n");
+            term.write("\r\n[SCRIPT] Trying 'class' (last attempt)...\r\n");
             globalBuffer = ""; // Clear before attempt
             await sendCmd("class");
             
@@ -1357,7 +1351,8 @@
             }
         }
         
-        term.write("\r\n[WARN] All passwords failed.\r\n");
+        // Don't try a 3rd password - Cisco will disconnect session
+        term.write("\r\n[WARN] Passwords failed. Stopping to prevent session disconnect.\r\n");
         return false;
       }
 
@@ -1416,7 +1411,7 @@
 
         // Step 1: Enable
         updateProgress(progressId, 1, 'Entering privileged mode...');
-        term.write("\r\n[INFO] Testing passwords: (empty), cisco, class\r\n");
+        term.write("\r\n[INFO] Testing passwords: cisco, class\r\n");
         await tryEnableWithPasswords();
 
         // Step 2: Write Erase
