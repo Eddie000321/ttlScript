@@ -1285,60 +1285,79 @@
       // ==========================================
       // Helper: Try entering privileged mode with common passwords
       async function tryEnableWithPasswords() {
+        // Clear buffer before starting to avoid stale matches
+        globalBuffer = "";
+        
         await sendCmd("enable");
 
-        // Wait for either privileged prompt (#) or Password prompt
-        let result = await waitForAny(["Password:", "#"], 5);
+        // Wait for either privileged prompt or Password prompt
+        // Use more specific patterns to avoid false matches
+        let result = await waitForAny(["Password:", "Router#", "Switch#", ">"], 5);
         
         if (!result) {
-            term.write("\r\n[WARN] Timeout waiting for enable prompt. Assuming failure or already enabled.\r\n");
+            term.write("\r\n[WARN] Timeout waiting for enable prompt.\r\n");
             return false; 
         }
 
         // Case 1: Already in privileged mode
-        if (result.match.includes("#")) {
+        if (result.match.includes("Router#") || result.match.includes("Switch#")) {
              term.write("\r\n[SCRIPT] No password required - already in privileged mode\r\n");
              return true;
         }
+        
+        // Case 2: Still at user prompt (no enable password set)
+        if (result.match.includes(">")) {
+             term.write("\r\n[SCRIPT] Still at user prompt, retrying enable...\r\n");
+             await sendCmd("enable");
+             result = await waitForAny(["Password:", "Router#", "Switch#"], 5);
+             if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
+                 return true;
+             }
+        }
 
-        // Case 2: Asked for password. 
+        // Case 3: Asked for password. 
         // Logic: Try empty -> 'class' -> 'cisco'
         
         // 1. Try Empty
-        term.write("\r\n[SCRIPT] Trying empty password...\r\n");
-        await sendCmd("");
-        
-        result = await waitForAny(["Password:", "#"], 5);
-        if (result && result.match.includes("#")) {
-            term.write("\r\n[SCRIPT] Empty password worked!\r\n");
-            return true;
-        }
-
-        // 2. Try 'class'
         if (result && result.match.includes("Password:")) {
-            term.write("\r\n[SCRIPT] Trying 'class'...\r\n");
-            await sendCmd("class");
+            term.write("\r\n[SCRIPT] Trying empty password...\r\n");
+            globalBuffer = ""; // Clear before attempt
+            await sendCmd("");
             
-            result = await waitForAny(["Password:", "#"], 5);
-            if (result && result.match.includes("#")) {
-                term.write("\r\n[SCRIPT] Password 'class' worked!\r\n");
+            result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
+            if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
+                term.write("\r\n[SCRIPT] Empty password worked!\r\n");
                 return true;
             }
         }
 
-        // 3. Try 'cisco'
-        if (result && result.match.includes("Password:")) {
+        // 2. Try 'cisco'
+        if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
             term.write("\r\n[SCRIPT] Trying 'cisco'...\r\n");
+            globalBuffer = ""; // Clear before attempt
             await sendCmd("cisco");
             
-            result = await waitForAny(["Password:", "#"], 5);
-            if (result && result.match.includes("#")) {
+            result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
+            if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
                 term.write("\r\n[SCRIPT] Password 'cisco' worked!\r\n");
                 return true;
             }
         }
+
+        // 3. Try 'class'
+        if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
+            term.write("\r\n[SCRIPT] Trying 'class'...\r\n");
+            globalBuffer = ""; // Clear before attempt
+            await sendCmd("class");
+            
+            result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
+            if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
+                term.write("\r\n[SCRIPT] Password 'class' worked!\r\n");
+                return true;
+            }
+        }
         
-        term.write("\r\n[WARN] All passwords failed or timeout.\r\n");
+        term.write("\r\n[WARN] All passwords failed.\r\n");
         return false;
       }
 
