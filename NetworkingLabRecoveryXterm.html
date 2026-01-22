@@ -880,67 +880,70 @@
       async function setTestPasswords(e) {
         if (e) e.stopPropagation();
         if (!port) return;
-        if (!confirm("Set test passwords? (Handles 'initial config dialog' -> no)\n\nThis will configure:\n• enable secret: class\n• console password: cisco")) return;
+        if (!confirm("Set test passwords on device? (Handles 'initial config dialog' -> no)\n\nThis will configure:\n• enable secret: class\n• console password: cisco")) return;
         
         term.write("\r\n[CONFIG] Starting configuration sequence...\r\n");
         
-        // 1. Check for initial config dialog
+        // 1. Check for initial config dialog or prompt
         await sendCmd(""); 
-        await new Promise((r) => setTimeout(r, 500));
-
-        if (globalBuffer.includes("initial configuration dialog") || globalBuffer.toLowerCase().includes("[yes/no]")) {
-          term.write("\r\n[CONFIG] Initial dialog detected. Sending 'no'...\r\n");
-          await sendCmd("no");
-          await sendCmd(""); 
-          
-          // Wait for Router> prompt if it was in dialog
-          if (!(await wait("Router>", 60))) {
-             // Fallback check
-             if (!globalBuffer.includes("Router>")) {
-                term.write("\r\n[CONFIG] Warning: Router> prompt not detected strictly, trying to proceed...\r\n");
-             }
-          }
+        
+        const initialRes = await waitForAny(["initial configuration dialog", "[yes/no]", "Router>", "Switch>", "Router#", "Switch#"], 10);
+        
+        if (initialRes && (initialRes.match.includes("initial") || initialRes.match.includes("yes/no"))) {
+           term.write("\r\n[CONFIG] Initial dialog detected. Sending 'no'...\r\n");
+           await sendCmd("no");
+           if (await waitForAny(["confirm", "yes/no"], 5)) {
+               await sendCmd("");
+           }
+        }
+        
+        // Wait for prompt
+        if (!(await waitForAny(["Router>", "Switch>", "Router#", "Switch#"], 60))) {
+            term.write("\r\n[CONFIG] Warning: Prompt not detected strictly, trying to proceed...\r\n");
         }
         
         // Clear buffer before proceeding
         globalBuffer = "";
-
+        
         term.write("\r\n[CONFIG] Setting test passwords...\r\n");
         
         // Enter privileged mode
         await sendCmd("enable");
-        await new Promise((r) => setTimeout(r, 500));
         
         // Check if password is needed to enable
+        if (!(await waitForAny(["Router#", "Switch#", "Password:"], 10))) return;
+        
         if (globalBuffer.includes("Password:")) {
-          term.write("\r\n[CONFIG] Already has enable password, trying known passwords...\r\n");
-          await tryEnableWithPasswords();
+           await tryEnableWithPasswords();
         }
         globalBuffer = "";
         
         // Enter config mode
         await sendCmd("conf t");
-        await new Promise((r) => setTimeout(r, 500));
+        if (!(await waitForAny(["(config)#"], 10))) return;
         
         // Set enable secret
         term.write("\r\n[CONFIG] Setting enable secret to 'class'...\r\n");
         await sendCmd("enable secret class");
-        await new Promise((r) => setTimeout(r, 300));
+        if (!(await waitForAny(["(config)#"], 5))) return;
         
         // Configure console line
         term.write("\r\n[CONFIG] Configuring console password to 'cisco'...\r\n");
         await sendCmd("line console 0");
-        await new Promise((r) => setTimeout(r, 300));
+        if (!(await waitForAny(["(config-line)#"], 5))) return;
+
         await sendCmd("password cisco");
-        await new Promise((r) => setTimeout(r, 300));
+        if (!(await waitForAny(["(config-line)#"], 5))) return;
+
         await sendCmd("login");
-        await new Promise((r) => setTimeout(r, 300));
+        if (!(await waitForAny(["(config-line)#"], 5))) return;
+
         await sendCmd("exit");
-        await new Promise((r) => setTimeout(r, 300));
+        if (!(await waitForAny(["(config)#"], 5))) return;
         
         // Exit config mode
         await sendCmd("end");
-        await new Promise((r) => setTimeout(r, 500));
+        if (!(await waitForAny(["#"], 5))) return;
         
         term.write("\r\n[CONFIG] Test passwords configured!\r\n");
         term.write("[CONFIG] • enable secret: class\r\n");
@@ -1356,19 +1359,28 @@
         // Step 2: Write Erase
         updateProgress(progressId, 2, 'Erasing config...');
         await sendCmd("write erase");
-        if (await waitForAny(["confirm", "]", "[confirm]"], 5)) {
+        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
           await sendCmd("");
         }
 
-        await new Promise((r) => setTimeout(r, 2000));
+        // Wait for prompt return
+        if (!(await waitForAny(["Router#", "Switch#"], 20))) return;
 
         // Step 3: Reload
         updateProgress(progressId, 3, 'Reloading...');
         await sendCmd("reload");
 
-        await new Promise((r) => setTimeout(r, 1000));
-        await sendCmd("no");
-        await sendCmd("");
+         // Handle confirmation
+        if (await waitForAny(["Proceed", "confirm", "yes/no"], 10)) {
+             await sendCmd("");
+        }
+        
+        // Handle Save?
+         const saveCheck = await waitForAny(["Save?", "yes/no"], 5);
+         if (saveCheck) {
+             await sendCmd("no");
+             await sendCmd("");
+         }
 
         completeProgress(progressId);
         alert("Router Quick Reset Complete! Device is rebooting.");
@@ -1391,11 +1403,12 @@
         // Step 2: Write Erase
         updateProgress(progressId, 2, 'Erasing config...');
         await sendCmd("write erase");
-        if (await waitForAny(["confirm", "]", "[confirm]"], 5)) {
+        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
           await sendCmd("");
         }
 
-        await new Promise((r) => setTimeout(r, 2000));
+        // Wait for prompt
+        if (!(await waitForAny(["#"], 10))) return;
 
         // Step 3: Delete VLAN
         updateProgress(progressId, 3, 'Deleting VLAN data...');
@@ -1407,15 +1420,24 @@
           await sendCmd(""); // Confirm delete
         }
 
-        await new Promise((r) => setTimeout(r, 1000));
+        // Wait for prompt
+        if (!(await waitForAny(["#"], 10))) return;
 
         // Step 4: Reload
         updateProgress(progressId, 4, 'Reloading...');
         await sendCmd("reload");
 
-        await new Promise((r) => setTimeout(r, 1000));
-        await sendCmd("no");
-        await sendCmd("");
+        // Handle confirmation
+        if (await waitForAny(["Proceed", "confirm", "yes/no"], 10)) {
+             await sendCmd("");
+        }
+        
+        // Handle Save?
+         const saveCheck = await waitForAny(["Save?", "yes/no"], 5);
+         if (saveCheck) {
+             await sendCmd("no");
+             await sendCmd("");
+         }
 
         completeProgress(progressId);
         alert("Switch Quick Reset Complete! Device is rebooting.");
