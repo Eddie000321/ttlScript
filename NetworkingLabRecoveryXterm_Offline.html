@@ -687,9 +687,19 @@
               >
                 🔑 Test Password Logic
               </button>
+              <button
+                id="btnSetPasswords"
+                onclick="setTestPasswords(event)"
+                class="btn-connect"
+                style="background:#ef4444;font-size:0.8em;padding:4px 10px;"
+                disabled
+              >
+                ⚙️ Set Test Passwords
+              </button>
             </div>
             <div style="color:#94a3b8;font-size:0.75em;margin-top:6px;">
               <strong>Auto-Enter:</strong> Sends Enter every 500ms. <strong>Test Password:</strong> Tests enable with (empty) → class → cisco.
+              <br><strong>Set Passwords:</strong> Sets enable secret <code>class</code> + console password <code>cisco</code>.
             </div>
           </div>
 
@@ -1009,7 +1019,7 @@
       }
 
       function enableControls(enabled) {
-        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick", "btnTestConnection", "btnTestPassword"];
+        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick", "btnTestConnection", "btnTestPassword", "btnSetPasswords"];
         ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
       }
 
@@ -1157,11 +1167,19 @@
 
         await sendCmd("reload");
 
+        // Handle "Save? [yes/no]:" prompt - need to send "no" explicitly
         await new Promise((r) => setTimeout(r, 1000));
-        await sendCmd("no");
+        
+        // Try multiple times in case of "Please answer 'yes' or 'no'" responses
+        for (let i = 0; i < 5; i++) {
+          await sendCmd("no");
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        
+        // Handle "Proceed with reload? [confirm]" prompt
         await sendCmd("");
 
-        alert("Router Recovery Complete!");
+        alert("Router Recovery Complete! Device is rebooting.");
       }
 
       async function runSwitchReset(e) {
@@ -1364,6 +1382,54 @@
           term.write("\r\n[TEST] Password test failed - no valid password found.\r\n");
           alert("Password test failed! None of the passwords worked.");
         }
+      }
+
+      async function setTestPasswords(e) {
+        if (e) e.stopPropagation();
+        if (!port) return;
+        if (!confirm("Set test passwords on device?\n\nThis will configure:\n• enable secret: class\n• console password: cisco")) return;
+        
+        term.write("\r\n[CONFIG] Setting test passwords...\r\n");
+        
+        // Enter privileged mode
+        await sendCmd("enable");
+        await new Promise((r) => setTimeout(r, 500));
+        
+        // Check if password is needed to enable
+        if (globalBuffer.includes("Password:")) {
+          term.write("\r\n[CONFIG] Already has enable password, trying known passwords...\r\n");
+          await tryEnableWithPasswords();
+        }
+        globalBuffer = "";
+        
+        // Enter config mode
+        await sendCmd("conf t");
+        await new Promise((r) => setTimeout(r, 500));
+        
+        // Set enable secret
+        term.write("\r\n[CONFIG] Setting enable secret to 'class'...\r\n");
+        await sendCmd("enable secret class");
+        await new Promise((r) => setTimeout(r, 300));
+        
+        // Configure console line
+        term.write("\r\n[CONFIG] Configuring console password to 'cisco'...\r\n");
+        await sendCmd("line console 0");
+        await new Promise((r) => setTimeout(r, 300));
+        await sendCmd("password cisco");
+        await new Promise((r) => setTimeout(r, 300));
+        await sendCmd("login");
+        await new Promise((r) => setTimeout(r, 300));
+        await sendCmd("exit");
+        await new Promise((r) => setTimeout(r, 300));
+        
+        // Exit config mode
+        await sendCmd("end");
+        await new Promise((r) => setTimeout(r, 500));
+        
+        term.write("\r\n[CONFIG] Test passwords configured!\r\n");
+        term.write("[CONFIG] • enable secret: class\r\n");
+        term.write("[CONFIG] • console password: cisco\r\n");
+        alert("Test passwords configured!\n\n• enable secret: class\n• console password: cisco");
       }
 
       async function runRouterQuickReset(e) {
