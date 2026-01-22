@@ -1096,14 +1096,30 @@
           await sendCmd("");
         }
 
+        // Wait for prompt before proceeding (instead of blind 2s wait)
+        if (!(await waitForAny(["Router#", "Switch#"], 20))) return;
+
+        await sendCmd("conf t");
+        if (!(await waitForAny(["(config)#"], 10))) return;
+
+        await sendCmd("config-register 0x2102");
+        await sendCmd("end");
+        
+        if (!(await waitForAny(["Router#"], 10))) return;
+        
+        await sendCmd("write erase");
+        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
+          await sendCmd("");
+        }
+
         await sendCmd("reload");
 
-        // Handle "Save? [yes/no]:" prompt or "Proceed"
+        // Handle "Save? [yes/no]:" prompt or "Proceed" immediately
         const reloadCheck = await waitForAny(["Save?", "yes/no", "confirm", "Proceed"], 10, { sendKeepAlive: false });
         
         if (reloadCheck && (reloadCheck.match.includes("Save") || reloadCheck.match.includes("yes/no"))) {
              await sendCmd("no");
-             await new Promise((r) => setTimeout(r, 500));
+             // Might ask confirm after no
              if (await waitForAny(["confirm", "Proceed"], 5)) {
                  await sendCmd("");
              }
@@ -1121,16 +1137,21 @@
         term.write("\r\n[INFO] Starting Switch Reset Script...\r\n");
 
         await sendCmd("flash_init");
-        await new Promise((r) => setTimeout(r, 2000));
+        // Wait for "switch:" prompt instead of blind wait
+        if (!(await waitForAny(["switch:"], 20))) return;
 
         await sendCmd("delete flash:vlan.dat");
         if (await waitForAny(["?", "confirm", "Delete"], 5)) await sendCmd("y");
+        // Wait for prompt
+        if (!(await waitForAny(["switch:"], 10))) return;
 
         await sendCmd("delete flash:config.text");
         if (await waitForAny(["?", "confirm", "Delete"], 5)) await sendCmd("y");
+        if (!(await waitForAny(["switch:"], 10))) return;
 
         await sendCmd("delete flash:private-config.text");
         if (await waitForAny(["?", "confirm", "Delete"], 5)) await sendCmd("y");
+        if (!(await waitForAny(["switch:"], 10))) return;
 
         await sendCmd("reset");
         if (await waitForAny(["?", "confirm", "Delete", "no"], 5)) await sendCmd("y");
@@ -1145,7 +1166,7 @@
         term.write("\r\n[INFO] Starting 9200 Recovery Script...\r\n");
 
         await sendCmd("SWITCH_IGNORE_STARTUP_CFG=1");
-        await new Promise((r) => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 500)); // Buffer fine here
 
         await sendCmd("boot");
         term.write("\r\n[INFO] Booting image... (approx 5-10 mins)\r\n");
@@ -1163,11 +1184,13 @@
         if (!(await waitForAny(["Switch#", "Router#"], 10))) return;
 
         await sendCmd("write erase");
-        await new Promise((r) => setTimeout(r, 1000));
         // Confirm write erase
         if (await waitForAny(["confirm", "]", "[confirm]"], 5)) {
              await sendCmd(""); 
         }
+
+        // Wait for prompt return
+        if (!(await waitForAny(["Switch#", "Router#"], 30))) return;
 
         await sendCmd("conf t");
         if (!(await waitForAny(["(config)#"], 10))) return;
@@ -1178,7 +1201,9 @@
         if (!(await waitForAny(["Switch#"], 10))) return;
         await sendCmd("write memory");
 
-        await new Promise((r) => setTimeout(r, 3000));
+        // Wait for [OK] or prompt instead of blind wait
+        await waitForAny(["[OK]", "Switch#", "Router#"], 30);
+
         await sendCmd("reload");
 
         // Handle confirmation
