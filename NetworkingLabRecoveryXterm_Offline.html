@@ -678,9 +678,18 @@
               >
                 ▶ Start Auto-Enter
               </button>
+              <button
+                id="btnTestPassword"
+                onclick="testPasswordLogic(event)"
+                class="btn-connect"
+                style="background:#f59e0b;font-size:0.8em;padding:4px 10px;"
+                disabled
+              >
+                🔑 Test Password Logic
+              </button>
             </div>
             <div style="color:#94a3b8;font-size:0.75em;margin-top:6px;">
-              Sends Enter key every 500ms to check device response. Click again to stop.
+              <strong>Auto-Enter:</strong> Sends Enter every 500ms. <strong>Test Password:</strong> Tests enable with (empty) → class → cisco.
             </div>
           </div>
 
@@ -1000,7 +1009,7 @@
       }
 
       function enableControls(enabled) {
-        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick", "btnTestConnection"];
+        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick", "btnTestConnection", "btnTestPassword"];
         ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
       }
 
@@ -1123,7 +1132,7 @@
         await sendCmd("no");
         await sendCmd("");
 
-        if (!(await wait("Router>"))) return;
+        if (!(await wait("Router>", 180))) return; // 3 min timeout for boot
 
         await sendCmd("enable");
 
@@ -1279,25 +1288,82 @@
       async function tryEnableWithPasswords() {
         await sendCmd("enable");
         
+        // Wait a moment to see the response
+        await new Promise((r) => setTimeout(r, 500));
+        
+        // Check if already in privileged mode (no password required)
+        if (globalBuffer.includes("#")) {
+          term.write("\r\n[SCRIPT] No password required - already in privileged mode\r\n");
+          globalBuffer = ""; // Clear buffer
+          return true;
+        }
+        
         // Check if password prompt appears
-        if (await wait("Password:", 2)) {
-          term.write("\r\n[SCRIPT] Trying empty password...\r\n");
-          await sendCmd(""); // Try empty password
+        if (globalBuffer.includes("Password:")) {
+          globalBuffer = ""; // Clear buffer
           
-          if (await wait("Password:", 2)) {
+          // Try empty password first
+          term.write("\r\n[SCRIPT] Trying empty password...\r\n");
+          await sendCmd("");
+          await new Promise((r) => setTimeout(r, 800));
+          
+          if (globalBuffer.includes("#")) {
+            term.write("\r\n[SCRIPT] Empty password worked!\r\n");
+            globalBuffer = "";
+            return true;
+          }
+          
+          if (globalBuffer.includes("Password:")) {
+            globalBuffer = "";
+            // Try 'class'
             term.write("\r\n[SCRIPT] Trying 'class'...\r\n");
-            await sendCmd("class"); // Try class
+            await sendCmd("class");
+            await new Promise((r) => setTimeout(r, 800));
             
-            if (await wait("Password:", 2)) {
+            if (globalBuffer.includes("#")) {
+              term.write("\r\n[SCRIPT] Password 'class' worked!\r\n");
+              globalBuffer = "";
+              return true;
+            }
+            
+            if (globalBuffer.includes("Password:")) {
+              globalBuffer = "";
+              // Try 'cisco'
               term.write("\r\n[SCRIPT] Trying 'cisco'...\r\n");
-              await sendCmd("cisco"); // Try cisco
+              await sendCmd("cisco");
+              await new Promise((r) => setTimeout(r, 800));
+              
+              if (globalBuffer.includes("#")) {
+                term.write("\r\n[SCRIPT] Password 'cisco' worked!\r\n");
+                globalBuffer = "";
+                return true;
+              }
             }
           }
         }
         
-        // Verify we're in privileged mode
+        // Final check
         await new Promise((r) => setTimeout(r, 500));
+        globalBuffer = "";
         return true;
+      }
+
+      async function testPasswordLogic(e) {
+        if (e) e.stopPropagation();
+        if (!port) return;
+        
+        term.write("\r\n[TEST] Starting Password Logic Test...\r\n");
+        term.write("[TEST] Will try: (empty) → class → cisco\r\n");
+        
+        const result = await tryEnableWithPasswords();
+        
+        if (result) {
+          term.write("\r\n[TEST] Password test completed!\r\n");
+          alert("Password test completed! Check terminal for details.");
+        } else {
+          term.write("\r\n[TEST] Password test failed - no valid password found.\r\n");
+          alert("Password test failed! None of the passwords worked.");
+        }
       }
 
       async function runRouterQuickReset(e) {
