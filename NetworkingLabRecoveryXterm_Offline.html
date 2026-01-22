@@ -679,15 +679,6 @@
                 ▶ Start Auto-Enter
               </button>
               <button
-                id="btnTestPassword"
-                onclick="testPasswordLogic(event)"
-                class="btn-connect"
-                style="background:#f59e0b;font-size:0.8em;padding:4px 10px;"
-                disabled
-              >
-                🔑 Test Password Logic
-              </button>
-              <button
                 id="btnSetPasswords"
                 onclick="setTestPasswords(event)"
                 class="btn-connect"
@@ -698,8 +689,7 @@
               </button>
             </div>
             <div style="color:#94a3b8;font-size:0.75em;margin-top:6px;">
-              <strong>Auto-Enter:</strong> Sends Enter every 500ms. <strong>Test Password:</strong> Tests enable with (empty) → class → cisco.
-              <br><strong>Set Passwords:</strong> Sets enable secret <code>class</code> + console password <code>cisco</code>.
+              <strong>Auto-Enter:</strong> Sends Enter every 500ms. <br><strong>Set Passwords:</strong> Handles initial dialog (no) → sets enable secret <code>class</code> + console password <code>cisco</code>.
             </div>
           </div>
 
@@ -904,6 +894,9 @@
     </main>
 
     <script>
+      // ==========================================
+      // 1. GLOBAL VARIABLES & SETUP
+      // ==========================================
       let port, writer, reader;
       let globalBuffer = "";
       let keepReading = false;
@@ -950,6 +943,9 @@
         card.classList.toggle("active");
       }
 
+      // ==========================================
+      // 2. THEME LOGIC
+      // ==========================================
       const darkTermTheme = {
         background: "#000000",
         foreground: "#00ff00",
@@ -992,6 +988,9 @@
         }
       })();
 
+      // ==========================================
+      // 3. CONNECTION LOGIC
+      // ==========================================
       async function connectSerial() {
         if (!navigator.serial) {
           alert(
@@ -1019,7 +1018,7 @@
       }
 
       function enableControls(enabled) {
-        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick", "btnTestConnection", "btnTestPassword", "btnSetPasswords"];
+        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick", "btnTestConnection", "btnSetPasswords"];
         ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
       }
 
@@ -1070,6 +1069,9 @@
         await port.setSignals({ break: false });
       }
 
+      // ==========================================
+      // 4. UTILITIES
+      // ==========================================
       let autoEnterInterval = null;
 
       function toggleAutoEnter(e) {
@@ -1101,6 +1103,10 @@
         }
       }
 
+      // ==========================================
+      // 5. HELPER FUNCTIONS
+      // ==========================================
+      // --- Helper: Wait for pattern in buffer ---
       // --- Helper: Wait for pattern in buffer ---
       async function wait(pattern, timeoutSec = 30) {
         term.write(`\r\n[SCRIPT] Waiting for: "${pattern}"...\r\n`);
@@ -1116,11 +1122,89 @@
           await new Promise((r) => setTimeout(r, 100));
         }
         term.write("\r\n[SCRIPT] Timeout waiting for pattern.\r\n");
-        alert(`Timeout waiting for: "${pattern}"`);
+        // alert(`Timeout waiting for: "${pattern}"`); // Optional: avoid alert spam
         return false;
       }
 
-      // --- Recovery Procedures ---
+      // --- Helper: Wait for ANY pattern in a list ---
+      // Returns { match: string, index: number } or null on timeout
+      // Options: { sendKeepAlive: boolean, keepAliveInterval: number, keepAliveCmd: string }
+      async function waitForAny(patterns, timeoutSec = 30, options = {}) {
+        const patternStr = patterns.map((p) => `"${p}"`).join(" or ");
+        term.write(`\r\n[SCRIPT] Waiting for: ${patternStr}...\r\n`);
+
+        const start = Date.now();
+        let lastKeepAlive = Date.now();
+        const keepAliveInterval = options.keepAliveInterval || 2000;
+        const keepAliveCmd = options.keepAliveCmd || "";
+
+        while (Date.now() - start < timeoutSec * 1000) {
+          // Check for matches
+          for (let p of patterns) {
+            const idx = globalBuffer.indexOf(p);
+            if (idx !== -1) {
+              // Found a match
+              // We consume up to the end of the match? 
+              // Usually safer to just consume what we found to keep history linear
+              globalBuffer = globalBuffer.substring(idx + p.length);
+              term.write(`\r\n[SCRIPT] Found: "${p}"\r\n`);
+              return { match: p, index: idx };
+            }
+          }
+
+          // Keep-Alive logic (e.g. press Enter every few seconds to wake up terminal)
+          if (options.sendKeepAlive && (Date.now() - lastKeepAlive > keepAliveInterval)) {
+             await sendCmd(keepAliveCmd);
+             lastKeepAlive = Date.now();
+          }
+
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        term.write("\r\n[SCRIPT] Timeout waiting for any pattern.\r\n");
+        return null;
+      }
+
+      // --- Smart Boot Helper ---
+      // Attempts to get to a standard prompt (Router> / Router# / Switch> / Switch#)
+      // handling "Press RETURN", "initial config dialog", etc. along the way.
+      async function smartBootWait(timeoutSec = 300) {
+         const start = Date.now();
+         
+         while (Date.now() - start < timeoutSec * 1000) {
+             // 1. Look for known prompts or interrupt triggers
+             // We actively send "Enter" every 5 seconds to wake it up or get past "Press RETURN"
+             const result = await waitForAny(
+               ["Router>", "Router#", "Switch>", "Switch#", "rommon", "initial configuration dialog", "would you like to enter the initial configuration dialog", "[yes/no]"], 
+               5, 
+               { sendKeepAlive: true, keepAliveInterval: 2000, keepAliveCmd: "" } // Send empty Enter
+             );
+
+             if (!result) continue; // Timeout of mini-wait, loop again checking overall timeout
+
+             const m = result.match;
+             
+             if (m.includes("Router") || m.includes("Switch")) {
+                 return { type: "prompt", prompt: m };
+             }
+             
+             if (m.includes("rommon")) {
+                 return { type: "rommon" };
+             }
+
+             if (m.includes("initial configuration") || m.includes("enter the initial") || m.includes("[yes/no]")) {
+                 term.write("\r\n[AUTO] Initial config dialog detected. Sending 'no'...\r\n");
+                 await sendCmd("no");
+                 await sendCmd("");
+                 // Loop back to wait for prompt
+             }
+         }
+         return { type: "timeout" };
+      }
+
+      // ==========================================
+      // 6. FACTORY RESET LOGIC (Password Recovery)
+      // ==========================================
 
       async function runRouterRecovery(e) {
         if (e) e.stopPropagation();
@@ -1128,56 +1212,83 @@
 
         term.write("\r\n[INFO] Starting Router Recovery Script...\r\n");
 
+        // rommon 1 > //
         await sendCmd("confreg 0x2142");
+        await sendCmd("");
 
-        if (!(await wait("rommon 2 >"))) return;
+        // Use smart wait for rommon 2
+        const rommonRes = await waitForAny(["rommon 2 >"], 30, { sendKeepAlive: true, keepAliveInterval: 2000 });
+        if (!rommonRes) return;
 
         await sendCmd("reset");
+        await sendCmd("");
         term.write(
           "\r\n[INFO] Router is rebooting. This may take a while...\r\n"
         );
 
-        if (!(await wait("initial configuration dialog", 600))) return;
+        // SMART WAIT: Handles "initial config dialog", "Press RETURN", "Router>", "Router#"
+        const bootRes = await smartBootWait(600); // 10 min timeout for boot
+        
+        if (bootRes.type === "timeout") {
+             alert("Timeout waiting for router to boot.");
+             return;
+        }
 
-        await sendCmd("no");
-        await sendCmd("");
+        // If we are at rommon again, something went wrong? Or maybe we just need to boot?
+        if (bootRes.type === "rommon") {
+             term.write("\r\n[WARN] Landed in ROMMON again? Trying boot...\r\n");
+             await sendCmd("boot");
+             // Wait again
+             const bootRes2 = await smartBootWait(600);
+             if (bootRes2.type !== "prompt") return;
+        }
 
-        if (!(await wait("Router>", 180))) return; // 3 min timeout for boot
+        // Now we should be at a prompt. Check if we need enable.
+        if (bootRes.prompt.includes(">") || bootRes.prompt.includes("Switch>")) {
+             await sendCmd("enable");
+             await sendCmd("");
+             if (!(await waitForAny(["Router#", "Switch#", "Password:"], 10))) return;
+             // If password asked? (Shouldn't happen with 0x2142 but just in case)
+             // We can assume we are good or handle it if needed.
+        }
 
-        await sendCmd("enable");
-
-        if (!(await wait("Router#"))) return;
+        term.write("\r\n[INFO] Device booted and enabled. Proceeding with wipe...\r\n");
 
         await sendCmd("write erase");
-        if (await wait("confirm", 5)) {
-          await sendCmd("");
-        } else if (await wait("]", 2)) {
+        // Handle confirm prompts
+        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
           await sendCmd("");
         }
 
         await new Promise((r) => setTimeout(r, 2000));
 
         await sendCmd("conf t");
-        if (!(await wait("(config)#"))) return;
+        if (!(await waitForAny(["(config)#", "(config)"], 10))) return;
 
         await sendCmd("config-register 0x2102");
         await sendCmd("end");
 
-        if (!(await wait("Router#"))) return;
+        if (!(await waitForAny(["Router#", "Switch#"], 10))) return;
 
         await sendCmd("reload");
 
         // Handle "Save? [yes/no]:" prompt - need to send "no" explicitly
         await new Promise((r) => setTimeout(r, 1000));
         
-        // Try multiple times in case of "Please answer 'yes' or 'no'" responses
-        for (let i = 0; i < 5; i++) {
-          await sendCmd("no");
-          await new Promise((r) => setTimeout(r, 500));
-        }
+        // Use waitForAny to detect "Save?" or "Proceed"
+        const reloadCheck = await waitForAny(["Save?", "yes/no", "confirm", "Proceed"], 10, { sendKeepAlive: false });
         
-        // Handle "Proceed with reload? [confirm]" prompt
-        await sendCmd("");
+        if (reloadCheck && (reloadCheck.match.includes("Save") || reloadCheck.match.includes("yes/no"))) {
+             await sendCmd("no");
+             await new Promise((r) => setTimeout(r, 500));
+             // Might ask confirm after no
+             if (await waitForAny(["confirm", "Proceed"], 5)) {
+                 await sendCmd("");
+             }
+        } else {
+             // Just blind fire confirmation if we didn't catch the exact prompt or it's just "Proceed"
+             await sendCmd("");
+        }
 
         alert("Router Recovery Complete! Device is rebooting.");
       }
@@ -1218,35 +1329,55 @@
         await sendCmd("boot");
         term.write("\r\n[INFO] Booting image... (approx 5-10 mins)\r\n");
 
-        if (!(await wait("Switch", 900))) return;
+        // SMART WAIT for 9200
+        const bootRes = await smartBootWait(900);
+        
+        if (bootRes.type === "timeout") {
+            alert("Timeout waiting for switch to boot.");
+            return;
+        }
 
+        // Ensure we are enabled
         await sendCmd("enable");
-        if (!(await wait("Switch#"))) return;
+        if (!(await waitForAny(["Switch#", "Router#"], 10))) return;
 
         await sendCmd("write erase");
         await new Promise((r) => setTimeout(r, 1000));
-        await sendCmd(""); // Confirm
+        // Confirm write erase
+        if (await waitForAny(["confirm", "]", "[confirm]"], 5)) {
+             await sendCmd(""); 
+        }
 
         await sendCmd("conf t");
-        if (!(await wait("(config)#"))) return;
+        if (!(await waitForAny(["(config)#"], 10))) return;
 
         await sendCmd("no system ignore startupconfig switch all");
         await sendCmd("exit");
 
-        if (!(await wait("Switch#"))) return;
+        if (!(await waitForAny(["Switch#"], 10))) return;
         await sendCmd("write memory");
 
         await new Promise((r) => setTimeout(r, 3000));
         await sendCmd("reload");
 
-        await new Promise((r) => setTimeout(r, 1000));
-        await sendCmd("no");
-        await sendCmd("");
+        // Handle confirmation
+        if (await waitForAny(["Proceed", "confirm", "yes/no"], 10)) {
+             await sendCmd("");
+        }
+        
+        // Handle Save?
+         const saveCheck = await waitForAny(["Save?", "yes/no"], 5);
+         if (saveCheck) {
+             await sendCmd("no");
+             await sendCmd("");
+         }
 
         alert("9200 Recovery Finished!");
       }
 
-      // --- Quick Reset (Connected Mode) ---
+      // ==========================================
+      // 7. QUICK RESET LOGIC (Password Known)
+      // ==========================================
 
       // Progress helper functions
       function showProgress(progressId) {
@@ -1305,89 +1436,92 @@
       // Helper: Try entering privileged mode with common passwords
       async function tryEnableWithPasswords() {
         await sendCmd("enable");
+
+        // Wait for either privileged prompt (#) or Password prompt
+        // We look for "Password:" or the prompt ending in "#"
+        // Note: waitForAny consumes buffer, so we just check what we matched.
+        let result = await waitForAny(["Password:", "#"], 5);
         
-        // Wait a moment to see the response
-        await new Promise((r) => setTimeout(r, 500));
-        
-        // Check if already in privileged mode (no password required)
-        if (globalBuffer.includes("#")) {
-          term.write("\r\n[SCRIPT] No password required - already in privileged mode\r\n");
-          globalBuffer = ""; // Clear buffer
-          return true;
+        if (!result) {
+            term.write("\r\n[WARN] Timeout waiting for enable prompt. Assuming failure or already enabled.\r\n");
+            return false; 
         }
+
+        // Case 1: Already in privileged mode
+        if (result.match.includes("#")) {
+             term.write("\r\n[SCRIPT] No password required - already in privileged mode\r\n");
+             return true;
+        }
+
+        // Case 2: Asked for password. 
+        // Logic: Try empty -> 'class' -> 'cisco'
         
-        // Check if password prompt appears
-        if (globalBuffer.includes("Password:")) {
-          globalBuffer = ""; // Clear buffer
-          
-          // Try empty password first
-          term.write("\r\n[SCRIPT] Trying empty password...\r\n");
-          await sendCmd("");
-          await new Promise((r) => setTimeout(r, 800));
-          
-          if (globalBuffer.includes("#")) {
+        // 1. Try Empty
+        term.write("\r\n[SCRIPT] Trying empty password...\r\n");
+        await sendCmd("");
+        
+        result = await waitForAny(["Password:", "#"], 5);
+        if (result && result.match.includes("#")) {
             term.write("\r\n[SCRIPT] Empty password worked!\r\n");
-            globalBuffer = "";
             return true;
-          }
-          
-          if (globalBuffer.includes("Password:")) {
-            globalBuffer = "";
-            // Try 'class'
+        }
+
+        // 2. Try 'class'
+        if (result && result.match.includes("Password:")) {
             term.write("\r\n[SCRIPT] Trying 'class'...\r\n");
             await sendCmd("class");
-            await new Promise((r) => setTimeout(r, 800));
             
-            if (globalBuffer.includes("#")) {
-              term.write("\r\n[SCRIPT] Password 'class' worked!\r\n");
-              globalBuffer = "";
-              return true;
-            }
-            
-            if (globalBuffer.includes("Password:")) {
-              globalBuffer = "";
-              // Try 'cisco'
-              term.write("\r\n[SCRIPT] Trying 'cisco'...\r\n");
-              await sendCmd("cisco");
-              await new Promise((r) => setTimeout(r, 800));
-              
-              if (globalBuffer.includes("#")) {
-                term.write("\r\n[SCRIPT] Password 'cisco' worked!\r\n");
-                globalBuffer = "";
+            result = await waitForAny(["Password:", "#"], 5);
+            if (result && result.match.includes("#")) {
+                term.write("\r\n[SCRIPT] Password 'class' worked!\r\n");
                 return true;
-              }
             }
-          }
         }
-        
-        // Final check
-        await new Promise((r) => setTimeout(r, 500));
-        globalBuffer = "";
-        return true;
-      }
 
-      async function testPasswordLogic(e) {
-        if (e) e.stopPropagation();
-        if (!port) return;
-        
-        term.write("\r\n[TEST] Starting Password Logic Test...\r\n");
-        term.write("[TEST] Will try: (empty) → class → cisco\r\n");
-        
-        const result = await tryEnableWithPasswords();
-        
-        if (result) {
-          term.write("\r\n[TEST] Password test completed!\r\n");
-          alert("Password test completed! Check terminal for details.");
-        } else {
-          term.write("\r\n[TEST] Password test failed - no valid password found.\r\n");
-          alert("Password test failed! None of the passwords worked.");
+        // 3. Try 'cisco'
+        if (result && result.match.includes("Password:")) {
+            term.write("\r\n[SCRIPT] Trying 'cisco'...\r\n");
+            await sendCmd("cisco");
+            
+            result = await waitForAny(["Password:", "#"], 5);
+            if (result && result.match.includes("#")) {
+                term.write("\r\n[SCRIPT] Password 'cisco' worked!\r\n");
+                return true;
+            }
         }
+        
+        term.write("\r\n[WARN] All passwords failed or timeout.\r\n");
+        return false;
       }
 
       async function setTestPasswords(e) {
         if (e) e.stopPropagation();
         if (!port) return;
-        if (!confirm("Set test passwords on device?\n\nThis will configure:\n• enable secret: class\n• console password: cisco")) return;
+        if (!confirm("Set test passwords on device? (Handles 'initial config dialog' -> no)\n\nThis will configure:\n• enable secret: class\n• console password: cisco")) return;
+        
+        term.write("\r\n[CONFIG] Starting configuration sequence...\r\n");
+        
+        // 1. Check for initial config dialog
+        await sendCmd(""); 
+        await new Promise((r) => setTimeout(r, 500));
+
+        // Use strict check or check for yes/no prompt
+        if (globalBuffer.includes("initial configuration dialog") || globalBuffer.toLowerCase().includes("[yes/no]")) {
+          term.write("\r\n[CONFIG] Initial dialog detected. Sending 'no'...\r\n");
+          await sendCmd("no");
+          await sendCmd(""); 
+
+          // Wait for Router> prompt if it was in dialog
+          if (!(await wait("Router>", 60))) {
+             // Fallback check
+             if (!globalBuffer.includes("Router>")) {
+                term.write("\r\n[CONFIG] Warning: Router> prompt not detected strictly, trying to proceed...\r\n");
+             }
+          }
+        }
+        
+        // Clear buffer before proceeding
+        globalBuffer = "";
         
         term.write("\r\n[CONFIG] Setting test passwords...\r\n");
         
@@ -1449,9 +1583,7 @@
         // Step 2: Write Erase
         updateProgress(progressId, 2, 'Erasing config...');
         await sendCmd("write erase");
-        if (await wait("confirm", 5)) {
-          await sendCmd("");
-        } else if (await wait("]", 2)) {
+        if (await waitForAny(["confirm", "]", "[confirm]"], 5)) {
           await sendCmd("");
         }
 
@@ -1486,9 +1618,7 @@
         // Step 2: Write Erase
         updateProgress(progressId, 2, 'Erasing config...');
         await sendCmd("write erase");
-        if (await wait("confirm", 5)) {
-          await sendCmd("");
-        } else if (await wait("]", 2)) {
+        if (await waitForAny(["confirm", "]", "[confirm]"], 5)) {
           await sendCmd("");
         }
 
@@ -1497,10 +1627,10 @@
         // Step 3: Delete VLAN
         updateProgress(progressId, 3, 'Deleting VLAN data...');
         await sendCmd("delete vlan.dat");
-        if (await wait("Delete", 3)) {
+        if (await waitForAny(["Delete", "confirm", "filename"], 3)) {
           await sendCmd(""); // Confirm filename
         }
-        if (await wait("confirm", 3)) {
+        if (await waitForAny(["confirm", "delete"], 3)) {
           await sendCmd(""); // Confirm delete
         }
 

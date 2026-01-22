@@ -25,9 +25,42 @@ Sends Enter key every 500ms to test device connectivity.
     ↓
 Sends "Enter" → waits 500ms → Sends "Enter" → ...
     ↓
+```
 [Click ■ Stop Auto-Enter]
     ↓
 [System] Auto-Enter stopped
+```
+
+---
+
+### Set Test Passwords (⚙️ Set Test Passwords)
+Helps set up a device for testing by configuring standard lab passwords.
+**Note:** Automatically handles `initial configuration dialog` by sending `no`.
+
+```
+[Click ⚙️ Set Test Passwords]
+    ↓
+Check for "initial configuration dialog"
+    ↓
+[If found] Send "no" → Wait for Router>
+    ↓
+enable
+    ↓
+conf t
+    ↓
+enable secret class
+    ↓
+line console 0
+    ↓
+password cisco
+    ↓
+login
+    ↓
+exit
+    ↓
+end
+    ↓
+✅ Test passwords configured
 ```
 
 ---
