@@ -5,12 +5,13 @@ A single-file web application for automating Cisco device recovery and reset pro
 ![Browser Support](https://img.shields.io/badge/Browser-Chrome%20%7C%20Edge-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+> **🚀 Quick Start**: Download the [offline version](NetworkingLabRecoveryXterm_Offline.html), open it in **Chrome** or **Edge**, and you're ready to go! (No internet required)
+
 > 📖 **See [FLOW.md](FLOW.md) for detailed step-by-step button flow examples.**
 
 ## Features
 
 ### 🔧 Utilities
-- **Auto-Enter**: Sends Enter key every 500ms to test device connectivity
 - **Auto-Enter**: Sends Enter key every 500ms to test device connectivity
 - **Dark/Light Mode**: Toggle theme with 🌙/☀️ button (preference saved to localStorage)
 
