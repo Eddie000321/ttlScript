@@ -120,29 +120,24 @@ This document describes the trigger conditions and execution flow for each butto
 
 1. send: "confreg 0x2142"
 3. wait for: ["rommon 2 >"]
-4. send: "reset"
-reset -> The router will restart—wait for it to fully boot.
-하지만얼마나 기다려야하는지 모르고 
-% Please answer 'yes' or 'no'.
-Would you like to enter the initial configuration dialog? [yes/no]: 이게 나오면 no로하고 다음으로 넘어가야함 Router>가 나올수도있음
+4. send: "reset" 1min 50s
+
+check Enter -> enter -> wait 20s
 
 after boot
 router>
 5. send: "" (Enter)
 6. send: "enable"
-7. wait for: ["Router#"]
-8. send: "write erase"
-9. wait for: ["geometry of nvram"]
-send ""
-10. wait for: ["Router#"]
-11. send: "conf t"
-12. wait for: ["(config)#"]
-13. send: "config-register 0x2102"
-14. send: "end"
-15. wait for: ["Router#"]
-16. send: "reload"
+7. send: "conf t"
+8. wait for: ["(config)#"]
+9. send: "config-register 0x2102"
+10. send: "end"
+11. wait for: ["Router#"]
+12. send: "write erase"
+17. send: "reload"
 if System configuration has been modified. Save? [Yes/No]:
-17. send: "no"
+18. send: "no"
+When asked to reload, type yes or press Enter.
 19. COMPLETE
 ```
 
