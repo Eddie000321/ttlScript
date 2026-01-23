@@ -1568,7 +1568,7 @@
         }
 
         term.write("\r\n[SUCCESS] Router Recovery COMPLETE! System is reloading with factory defaults.\r\n");
-        alert("Router Recovery Complete!\n\nDevice is reloading with default config.\n\nconfig-register: 0x2102");
+        alert("Router Recovery Complete!\\n\\nDevice is reloading with default config.\\n\\nconfig-register: 0x2102\\n\\n🎉\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
       }
 
       async function runSwitchReset(e) {
@@ -1597,7 +1597,7 @@
         await sendCmd("reset");
         if (await wait("?", 5)) await sendCmd("y");
 
-        alert("Switch is resetting...");
+        alert("Switch Reset Script Initiated.\\n(Wait for prompt...)\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
       }
 
       // 9200 Recovery - Phase 1: Boot (from switch: prompt)
@@ -1619,7 +1619,7 @@
         term.write("\r\n[INFO] Switch is booting... (5-15 minutes)\r\n");
         term.write("\r\n[INFO] When you see 'Switch>' prompt, click 'Phase 2: Reset' button.\r\n");
         
-        alert("Phase 1 Complete!\n\nSwitch is booting...\n\nWhen you see 'Switch>' prompt:\n→ Click 'Phase 2: Reset' button");
+        alert("Phase 1 Complete!\\n\\nSwitch is booting...\\n\\nWhen you see 'Switch>' prompt:\\n→ Click 'Phase 2: Reset' button\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
       }
 
       // 9200 Recovery - Phase 2: Reset (from Switch> prompt)
@@ -1706,7 +1706,7 @@
         }
 
         term.write("\r\n[INFO] 9200 Recovery Complete! Device is rebooting.\r\n");
-        alert("9200 Recovery Complete!\n\nDevice is rebooting with default config.");
+        alert("9200 Recovery Complete!\\n\\nDevice is rebooting with default config.\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
       }
 
       // ==========================================
@@ -2024,7 +2024,7 @@
         completeProgress(progressId);
         const pairStr = usedPair[1] ? `${usedPair[0]} + ${usedPair[1]}` : usedPair[0];
         term.write(`\r\n[INFO] Router Reset Complete! Used: ${pairStr}\r\n`);
-        alert(`Router Reset Complete!\n\nPassword: ${pairStr}\n\nDevice is rebooting.`);
+        alert(`Router Reset Complete!\\n\\nPassword: ${pairStr}\\n\\nDevice is rebooting.\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)`);
       }
 
       // Router Quick Reset V2 - Click when Router> prompt appears - NO PASSWORD
@@ -2107,7 +2107,7 @@
 
         completeProgress(progressId);
         term.write("\r\n[INFO] Router Quick Reset V2 Complete! Device is rebooting.\r\n");
-        alert("Router Quick Reset V2 Complete!\n\nDevice is rebooting.");
+        alert("Router Quick Reset V2 Complete!\\n\\nDevice is rebooting.\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
       }
 
       async function runSwitchQuickReset(e) {
@@ -2164,7 +2164,7 @@
          }
 
         completeProgress(progressId);
-        alert("Switch Quick Reset Complete! Device is rebooting.");
+        alert("Switch Quick Reset Complete! Device is rebooting.\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
       }
     </script>
   </body>
