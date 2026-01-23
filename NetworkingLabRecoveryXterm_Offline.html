@@ -708,13 +708,15 @@
               </div>
             </div>
             <div class="card-body">
-              <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong style="color:#f59e0b;">▶ Click when you see "Password:" prompt</strong>
+              </div>
+              <div style="padding:5px 0;color:#94a3b8;font-size:0.85em;">
                 <strong>Password Test:</strong>
-                <span class="code-snippet">(empty)</span> →
                 <span class="code-snippet">cisco</span> →
                 <span class="code-snippet">class</span>
               </div>
-              <div style="padding:0 0 10px 0;color:#94a3b8;font-size:0.85em;">
+              <div style="padding:5px 0 10px 0;color:#94a3b8;font-size:0.85em;">
                 <strong>Steps:</strong>
                 <span class="code-snippet">enable</span> →
                 <span class="code-snippet">write erase</span> →
@@ -737,6 +739,46 @@
             </div>
           </div>
 
+          <!-- Router Quick Reset V2 Card (Router> → en → wr → wr er → reload) - No Password -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#1a1a1a;border:1px solid #22c55e;margin-right:6px;"></span>
+                <span>Router Quick Reset V2</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong style="color:#22c55e;">▶ Click when you see "Router>" prompt</strong>
+              </div>
+              <div style="padding:5px 0;color:#94a3b8;font-size:0.85em;">
+                <strong>No password required</strong> (enable secret not set)
+              </div>
+              <div style="padding:5px 0 10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong>Steps:</strong>
+                <span class="code-snippet">en</span> →
+                <span class="code-snippet">wr</span> →
+                <span class="code-snippet">wr er</span> →
+                <span class="code-snippet">reload</span>
+              </div>
+              <div id="progressRouterQuickV2" class="progress-bar" style="display:none;">
+                <div class="progress-step" data-step="1"></div>
+                <div class="progress-step" data-step="2"></div>
+                <div class="progress-step" data-step="3"></div>
+                <div class="progress-step" data-step="4"></div>
+                <span class="progress-label">Ready</span>
+              </div>
+              <button
+                id="btnRouterQuickV2"
+                class="btn-run"
+                onclick="runRouterQuickResetV2(event)"
+                disabled
+              >
+                <span>Quick Reset Router V2</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Switch Quick Reset Card -->
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
@@ -748,7 +790,6 @@
             <div class="card-body">
               <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
                 <strong>Password Test:</strong>
-                <span class="code-snippet">(empty)</span> →
                 <span class="code-snippet">cisco</span> →
                 <span class="code-snippet">class</span>
               </div>
@@ -1018,7 +1059,7 @@
       }
 
       function enableControls(enabled) {
-        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnSwitchQuick", "btnTestConnection", "btnSetPasswords"];
+        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnRouterQuickV2", "btnSwitchQuick", "btnTestConnection", "btnSetPasswords"];
         ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
       }
 
@@ -1448,6 +1489,7 @@
       }
 
       // Helper: Try entering privileged mode with common passwords
+      // Handles two-stage auth: console password (cisco) -> Router> -> enable -> enable password (class) -> Router#
       async function tryEnableWithPasswords() {
         // Clear buffer before starting to avoid stale matches
         globalBuffer = "";
@@ -1455,8 +1497,7 @@
         await sendCmd("enable");
 
         // Wait for either privileged prompt or Password prompt
-        // Use more specific patterns to avoid false matches
-        let result = await waitForAny(["Password:", "Router#", "Switch#", ">"], 5);
+        let result = await waitForAny(["Password:", "Router#", "Switch#", "Router>", "Switch>"], 5);
         
         if (!result) {
             term.write("\r\n[WARN] Timeout waiting for enable prompt.\r\n");
@@ -1469,61 +1510,83 @@
              return true;
         }
         
-        // Case 2: Still at user prompt (no enable password set)
-        if (result.match.includes(">")) {
-             // Maybe enable didn't work, try again or just proceed
-             term.write("\r\n[SCRIPT] Still at user prompt, retrying enable...\r\n");
-             await sendCmd("enable");
-             result = await waitForAny(["Password:", "Router#", "Switch#"], 5);
-             if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                 return true;
-             }
+        // Case 2: At user prompt (no enable password set, just need enable)
+        if (result.match.includes("Router>") || result.match.includes("Switch>")) {
+             term.write("\r\n[SCRIPT] At user prompt. Enable doesn't need password.\r\n");
+             return true;
         }
 
-        // Case 3: Asked for password. 
-        // Order: empty -> cisco -> class
-        // Note: Cisco may disconnect after 3 failures, but we need to try all
-        
-        // 1. Try empty password first (fastest check)
+        // Case 3: Asked for password (enable secret)
+        // Try cisco first, then class
         if (result && result.match.includes("Password:")) {
-            term.write("\r\n[SCRIPT] Trying empty password...\r\n");
-            globalBuffer = ""; // Clear before attempt
-            await sendCmd("");
-            
-            result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
-            if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                term.write("\r\n[SCRIPT] Empty password worked!\r\n");
-                return true;
-            }
-        }
-
-        // 2. Try 'cisco'
-        if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
-            term.write("\r\n[SCRIPT] Trying 'cisco'...\r\n");
-            globalBuffer = ""; // Clear before attempt
+            // Try 'cisco' for enable password
+            term.write("\r\n[SCRIPT] Enable password required. Trying 'cisco'...\r\n");
+            globalBuffer = "";
             await sendCmd("cisco");
             
-            result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
+            result = await waitForAny(["Password:", "Router#", "Switch#", "Router>", "Switch>", "% "], 10);
+            
             if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                term.write("\r\n[SCRIPT] Password 'cisco' worked!\r\n");
+                term.write("\r\n[SCRIPT] Enable password 'cisco' worked!\r\n");
                 return true;
             }
-        }
-
-        // 3. Try 'class'
-        if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
-            term.write("\r\n[SCRIPT] Trying 'class'...\r\n");
-            globalBuffer = ""; // Clear before attempt
-            await sendCmd("class");
             
-            result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
-            if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                term.write("\r\n[SCRIPT] Password 'class' worked!\r\n");
-                return true;
+            // cisco failed, try 'class'
+            if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
+                term.write("\r\n[SCRIPT] Trying 'class' for enable password...\r\n");
+                globalBuffer = "";
+                await sendCmd("class");
+                
+                result = await waitForAny(["Password:", "Router#", "Switch#", "Router>", "Switch>", "% "], 10);
+                
+                if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
+                    term.write("\r\n[SCRIPT] Enable password 'class' worked!\r\n");
+                    return true;
+                }
+            }
+            
+            // Got Router> after password - this was console login password, now need enable
+            if (result && (result.match.includes("Router>") || result.match.includes("Switch>"))) {
+                term.write("\r\n[SCRIPT] Console password worked! Now trying enable...\r\n");
+                globalBuffer = "";
+                await sendCmd("enable");
+                
+                result = await waitForAny(["Password:", "Router#", "Switch#"], 5);
+                
+                if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
+                    term.write("\r\n[SCRIPT] Enable succeeded!\r\n");
+                    return true;
+                }
+                
+                // Enable needs password too
+                if (result && result.match.includes("Password:")) {
+                    term.write("\r\n[SCRIPT] Enable password required. Trying 'class'...\r\n");
+                    globalBuffer = "";
+                    await sendCmd("class");
+                    
+                    result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
+                    if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
+                        term.write("\r\n[SCRIPT] Enable password 'class' worked!\r\n");
+                        return true;
+                    }
+                    
+                    // class failed for enable, try cisco
+                    if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
+                        term.write("\r\n[SCRIPT] Trying 'cisco' for enable password...\r\n");
+                        globalBuffer = "";
+                        await sendCmd("cisco");
+                        
+                        result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
+                        if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
+                            term.write("\r\n[SCRIPT] Enable password 'cisco' worked!\r\n");
+                            return true;
+                        }
+                    }
+                }
             }
         }
         
-        term.write("\r\n[WARN] All passwords (empty, cisco, class) failed.\r\n");
+        term.write("\r\n[WARN] Password authentication failed.\r\n");
         return false;
       }
 
@@ -1613,7 +1676,7 @@
 
         // Step 1: Enable
         updateProgress(progressId, 1, 'Entering privileged mode...');
-        term.write("\r\n[INFO] Testing passwords: (empty), cisco, class\r\n");
+        term.write("\r\n[INFO] Testing passwords: cisco, class\r\n");
         await tryEnableWithPasswords();
 
         // Step 2: Write Erase
@@ -1646,6 +1709,94 @@
         alert("Router Quick Reset Complete! Device is rebooting.");
       }
 
+      // Router Quick Reset V2 - Click when Router> prompt appears - NO PASSWORD
+      // Flow: Router> -> en -> Router# -> wr -> wr er -> complete -> Router# -> reload
+      async function runRouterQuickResetV2(e) {
+        if (e) e.stopPropagation();
+        if (!confirm("Quick Reset Router V2?\n\n▶ Click this when you see 'Router>' prompt!\n\nNo password required (enable secret not set)\n\nSteps: en → wr → wr er → reload\n\nThis will ERASE all config!")) return;
+
+        const progressId = 'progressRouterQuickV2';
+        showProgress(progressId);
+        globalBuffer = "";
+
+        term.write("\r\n[INFO] Starting Router Quick Reset V2 (No Password)...\r\n");
+
+        // Step 1: Enable (no password)
+        updateProgress(progressId, 1, 'Entering enable mode...');
+        term.write("\r\n[INFO] Running: en\r\n");
+        await sendCmd("en");
+        
+        // Wait for Router# (no password expected)
+        let result = await waitForAny(["Router#", "Switch#"], 10);
+        
+        if (!result) {
+            term.write("\r\n[ERROR] Timeout waiting for Router# prompt.\r\n");
+            errorProgress(progressId, 'Timeout');
+            return;
+        }
+        
+        term.write("\r\n[INFO] Enable mode entered! Got Router#\r\n");
+
+        // Step 2: Write (save current config)
+        updateProgress(progressId, 2, 'Running wr...');
+        term.write("\r\n[INFO] Running: wr\r\n");
+        globalBuffer = "";
+        await sendCmd("wr");
+        
+        // Wait for [OK] or Router#
+        await waitForAny(["[OK]", "Router#", "Switch#"], 30);
+        
+        // Step 3: Write Erase
+        updateProgress(progressId, 3, 'Running wr er...');
+        term.write("\r\n[INFO] Running: wr er\r\n");
+        globalBuffer = "";
+        await sendCmd("wr er");
+        
+        // Wait for confirm
+        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
+            await sendCmd("");
+        }
+        
+        // Wait for "Erase of nvram: complete"
+        term.write("\r\n[INFO] Waiting for 'Erase of nvram: complete'...\r\n");
+        const eraseResult = await waitForAny(["Erase of nvram: complete", "complete"], 60);
+        
+        if (eraseResult) {
+            term.write("\r\n[INFO] Erase of nvram: complete!\r\n");
+        }
+        
+        // Wait for Router# prompt (with date info)
+        term.write("\r\n[INFO] Waiting for Router# prompt...\r\n");
+        if (!(await waitForAny(["Router#", "Switch#"], 60))) {
+            term.write("\r\n[WARN] Prompt not detected, continuing anyway...\r\n");
+        }
+
+        // Step 4: Reload
+        updateProgress(progressId, 4, 'Reloading...');
+        term.write("\r\n[INFO] Running: reload\r\n");
+        globalBuffer = "";
+        await sendCmd("reload");
+
+        // Handle "System configuration has been modified. Save? [yes/no]:"
+        result = await waitForAny(["Save?", "yes/no", "Proceed", "confirm"], 10);
+        
+        if (result && (result.match.includes("Save") || result.match.includes("yes/no"))) {
+            term.write("\r\n[INFO] Declining save, sending 'no'...\r\n");
+            await sendCmd("no");
+            
+            // Wait for Proceed
+            if (await waitForAny(["Proceed", "confirm"], 5)) {
+                await sendCmd("");
+            }
+        } else if (result && (result.match.includes("Proceed") || result.match.includes("confirm"))) {
+            await sendCmd("");
+        }
+
+        completeProgress(progressId);
+        term.write("\r\n[INFO] Router Quick Reset V2 Complete! Device is rebooting.\r\n");
+        alert("Router Quick Reset V2 Complete!\n\nDevice is rebooting.");
+      }
+
       async function runSwitchQuickReset(e) {
         if (e) e.stopPropagation();
         if (!confirm("Quick Reset Switch? This will ERASE all config + VLAN info!")) return;
@@ -1657,7 +1808,7 @@
 
         // Step 1: Enable
         updateProgress(progressId, 1, 'Entering privileged mode...');
-        term.write("\r\n[INFO] Testing passwords: (empty), cisco, class\r\n");
+        term.write("\r\n[INFO] Testing passwords: cisco, class\r\n");
         await tryEnableWithPasswords();
 
         // Step 2: Write Erase
