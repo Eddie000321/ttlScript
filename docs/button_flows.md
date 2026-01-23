@@ -6,55 +6,61 @@ This document describes the trigger conditions and execution flow for each butto
 
 ## Quick Reset Buttons
 
-### 1. Router Quick Reset
+### 1. Router Reset for Password:
 
 **Trigger Condition:** Click when you see `Password:` prompt
 
+**Password Pairs Tested:**
+- cisco + cisco
+- cisco + class
+- class + cisco
+- class + class
+
 **Execution Flow:**
 ```
-1. send: "enable"
-2. wait for: ["Password:", "Router#", "Switch#", "Router>", "Switch>"]
-   - if "Router#" or "Switch#" → already enabled, continue
-   - if "Router>" or "Switch>" → already at user prompt, continue
-   - if "Password:" → try passwords
-3. Password attempts (in order):
-   a. send: "cisco" → wait for ["Password:", "Router#", "Switch#", "% "]
-   b. send: "class" → wait for ["Password:", "Router#", "Switch#", "% "]
-   c. if Router> returned → send "enable" → try "class" then "cisco" for enable
-4. send: "write erase"
-5. wait for: ["confirm", "]", "[confirm]"]
-6. send: "" (Enter)
-7. wait for: ["Router#", "Switch#"]
-8. send: "reload"
-9. wait for: ["Save?", "yes/no", "Proceed", "confirm"]
-   - if "Save?" or "yes/no" → send "no"
-10. wait for: ["Proceed", "confirm"] → send ""
-11. COMPLETE
+1. For each password pair [pass1, pass2]:
+   a. send: pass1
+   b. wait for: ["Password:", ">", "#", "Bad password", "% "]
+      - if ">" or "#" → SUCCESS (no 2nd password needed)
+      - if "Bad password" or "% " → recover (Enter until Password:) → next pair
+      - if "Password:" → send: pass2
+   c. wait for: ["Password:", ">", "#", "Bad password", "% "]
+      - if ">" or "#" → SUCCESS
+      - else → recover → next pair
+
+2. If at user mode (>):
+   a. send: "enable"
+   b. try passwords: cisco, class
+
+3. send: "write erase"
+4. wait for: ["confirm"] → send ""
+5. wait for: ["#"]
+6. send: "reload"
+7. if Save? → send "no"
+8. COMPLETE
 ```
 
 ---
 
-### 2. Router Quick Reset V2
+### 2. Router Reset for No Password
 
-**Trigger Condition:** Click when you see `Router>` prompt (NO PASSWORD)
+**Trigger Condition:** Click when you see `>` prompt (e.g. Router>, R1>) - NO PASSWORD
 
 **Execution Flow:**
 ```
 1. send: "en"
-2. wait for: ["Router#", "Switch#"] (timeout: 10s)
-   - if timeout → ERROR
+2. wait for: [">", "#"] (any hostname: R1>, R2#, Router#)
 3. send: "wr"
-4. wait for: ["[OK]", "Router#", "Switch#"]
+4. wait for: ["[OK]", ">", "#"]
 5. send: "wr er"
-6. wait for: ["confirm", "]", "[confirm]"]
+6. wait for: ["confirm", "]"]
 7. send: "" (Enter)
 8. wait for: ["Erase of nvram: complete", "complete"] (timeout: 60s)
-9. wait for: ["Router#", "Switch#"] (timeout: 60s)
-10. send: "reload"
-11. wait for: ["Save?", "yes/no", "Proceed", "confirm"]
+9. send: "reload"
+10. wait for: ["Save?", "yes/no", "Proceed", "confirm"]
     - if "Save?" or "yes/no" → send "no"
-12. wait for: ["Proceed", "confirm"] → send ""
-13. COMPLETE
+11. wait for: ["Proceed", "confirm"] → send ""
+12. COMPLETE
 ```
 
 ---
@@ -74,7 +80,8 @@ This document describes the trigger conditions and execution flow for each butto
 5. wait for: ["Switch#", "Router#"]
 6. send: "delete vlan.dat"
 7. wait for: ["?"] → send "y"
-8. send: "reload"
+
+8. send: "reset" -> yes
 9. wait for: ["Save?", "yes/no", "Proceed", "confirm"]
    - if "Save?" or "yes/no" → send "no"
 10. wait for: ["Proceed", "confirm"] → send ""
@@ -92,29 +99,26 @@ This document describes the trigger conditions and execution flow for each butto
 **Execution Flow:**
 ```
 1. send: "confreg 0x2142"
-2. send: "" (Enter)
-3. wait for: ["rommon 2 >"] (timeout: 30s)
+3. wait for: ["rommon 2 >"]
 4. send: "reset"
+reset -> The router will restart—wait for it to fully boot.
+
+after boot
 5. send: "" (Enter)
-6. call: smartBootWait(600) - handles:
-   - "initial configuration dialog" → send "no"
-   - "[yes/no]" → send "no"
-   - "Press RETURN" → send ""
-   - wait for "Router>" or "Router#" or "Switch>" or "Switch#"
-   - if "rommon" → send "boot" and wait again
-7. if prompt is ">" → send "enable" → wait for "Router#"
+6. send: "enable"
+7. wait for: ["Router#"]
 8. send: "write erase"
-9. wait for: ["confirm", "]", "[confirm]"] → send ""
-10. wait for: ["Router#", "Switch#"]
+9. wait for: ["geometry of nvram"]
+send ""
+10. wait for: ["Router#"]
 11. send: "conf t"
 12. wait for: ["(config)#"]
 13. send: "config-register 0x2102"
 14. send: "end"
-15. wait for: ["Router#", "Switch#"]
+15. wait for: ["Router#"]
 16. send: "reload"
-17. wait for: ["Save?", "yes/no", "confirm", "Proceed"]
-    - if "Save?" or "yes/no" → send "no"
-18. wait for: ["confirm", "Proceed"] → send ""
+if System configuration has been modified. Save? [Yes/No]:
+17. send: "no"
 19. COMPLETE
 ```
 
@@ -126,8 +130,8 @@ This document describes the trigger conditions and execution flow for each butto
 
 **Execution Flow:**
 ```
-1. send: "flash_init"
-2. wait for: ["switch:"] (timeout: 20s)
+1. send: "dir flash"
+2. wait for: ["switch:"] 
 3. send: "delete flash:vlan.dat"
 4. wait for: ["?"] → send "y"
 5. wait for: ["switch:"]
@@ -150,31 +154,37 @@ This document describes the trigger conditions and execution flow for each butto
 
 **Execution Flow:**
 ```
+// 버튼 1 과정
+run from switch: prompt
 1. send: "SWITCH_IGNORE_STARTUP_CFG=1"
-2. delay: 500ms
-3. send: "boot"
-4. call: smartBootWait(900) - wait for boot (up to 15 min)
-   - handles "initial configuration dialog" → "no"
-5. send: "enable"
-6. wait for: ["Switch#", "Router#"]
-7. send: "write erase"
-8. wait for: ["confirm", "]", "[confirm]"] → send ""
-9. wait for: ["Switch#", "Router#"]
+2. send: "boot"
+If the switch reloads with a password, please repeat steps 1 and 2.
+
+// 버튼 2 과정
+Switch>가 표시되면 두번째 과정버튼을 누르게하는걸로한다
+4. send: "enable"
+5. wait for: ["Switch#"]
+6. send: "write erase"
+9. wait for: ["Switch#"]
+send: "write memory"
+wait for: ["Switch#"]
+send ""
+
 10. send: "conf t"
 11. wait for: ["(config)#"]
 12. send: "no system ignore startupconfig switch all"
+check output Applying config on
+if not, do again
+
+11. wait for: ["(config)#"]
 13. send: "exit"
 14. wait for: ["Switch#"]
-15. send: "write memory"
-16. wait for: ["[OK]", "Switch#", "Router#"]
-17. send: "reload"
-18. wait for: ["Proceed", "confirm", "yes/no"] → send ""
-19. wait for: ["Save?", "yes/no"]
-    - if matched → send "no" → send ""
+15. send: "reload"
+16. wait for: ["System Configuration has been modified. Save? [Yes/No]:"]
+17. send: "no"
 20. COMPLETE
 ```
 
----
 
 ## Utility Buttons
 

@@ -699,12 +699,12 @@
             <span style="color:#94a3b8;font-size:0.85em;"> — Password known / Already logged in</span>
           </div>
 
-          <!-- Router Quick Reset Card -->
+          <!-- Router Reset for Password: prompt Card -->
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
               <div class="card-title">
                 <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#1a1a1a;border:1px solid #444;margin-right:6px;"></span>
-                <span>Router Quick Reset</span>
+                <span>Router Reset for Password:</span>
               </div>
             </div>
             <div class="card-body">
@@ -739,12 +739,12 @@
             </div>
           </div>
 
-          <!-- Router Quick Reset V2 Card (Router> → en → wr → wr er → reload) - No Password -->
+          <!-- Router Reset for No Password Card (> → en → wr → wr er → reload) -->
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
               <div class="card-title">
                 <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#1a1a1a;border:1px solid #22c55e;margin-right:6px;"></span>
-                <span>Router Quick Reset V2</span>
+                <span>Router Reset for No Password</span>
               </div>
             </div>
             <div class="card-body">
@@ -1667,53 +1667,165 @@
 
       async function runRouterQuickReset(e) {
         if (e) e.stopPropagation();
-        if (!confirm("Quick Reset Router? This will ERASE all config!")) return;
+        if (!confirm("Router Reset for Password: prompt?\n\n▶ Click this when you see 'Password:' prompt!\n\nPassword pairs tested:\n1. cisco + class\n2. class + cisco\n3. cisco + cisco\n4. class + class\n\nThis will ERASE all config!")) return;
 
         const progressId = 'progressRouterQuick';
         showProgress(progressId);
+        globalBuffer = "";
 
-        term.write("\r\n[INFO] Starting Router Quick Reset...\r\n");
+        term.write("\r\n[INFO] Starting Router Reset for Password:...\r\n");
 
-        // Step 1: Enable
-        updateProgress(progressId, 1, 'Entering privileged mode...');
-        term.write("\r\n[INFO] Testing passwords: cisco, class\r\n");
-        await tryEnableWithPasswords();
+        // Password pairs: [1st, 2nd]
+        const passwordPairs = [
+            ["cisco", "class"],
+            ["class", "cisco"],
+            ["cisco", "cisco"],
+            ["class", "class"]
+        ];
+
+        let loggedIn = false;
+        let usedPair = null;
+
+        updateProgress(progressId, 1, 'Trying password pairs...');
+
+        for (let i = 0; i < passwordPairs.length; i++) {
+            const [pass1, pass2] = passwordPairs[i];
+            term.write(`\r\n[INFO] ========== Pair ${i + 1}/4: ${pass1} + ${pass2} ==========\r\n`);
+
+            // Send 1st password
+            term.write(`\r\n[INFO] Sending 1st: ${pass1}\r\n`);
+            globalBuffer = "";
+            await sendCmd(pass1);
+            
+            let result = await waitForAny(["Password:", ">", "#"], 15);
+            
+            // Check if 1st worked (no 2nd needed)
+            if (result && (result.match.includes(">") || result.match.includes("#"))) {
+                term.write(`\r\n[INFO] SUCCESS with just: ${pass1}\r\n`);
+                loggedIn = true;
+                usedPair = [pass1, null];
+                break;
+            }
+            
+            // Password: prompt appeared → send 2nd password
+            if (result && result.match.includes("Password:")) {
+                term.write(`\r\n[INFO] Sending 2nd: ${pass2}\r\n`);
+                globalBuffer = "";
+                await sendCmd(pass2);
+                
+                result = await waitForAny(["Password:", ">", "#"], 15);
+                
+                // Check if pair worked
+                if (result && (result.match.includes(">") || result.match.includes("#"))) {
+                    term.write(`\r\n[INFO] SUCCESS with: ${pass1} + ${pass2}\r\n`);
+                    loggedIn = true;
+                    usedPair = [pass1, pass2];
+                    break;
+                }
+                
+                // Still Password: → pair failed, trigger Bad password and recover
+                if (result && result.match.includes("Password:")) {
+                    term.write(`\r\n[WARN] Pair failed. Sending Enter to trigger Bad password...\r\n`);
+                    globalBuffer = "";
+                    await sendCmd("");
+                    
+                    // Wait for Bad password and then Password: prompt
+                    result = await waitForAny(["Bad password", "Password:", ">", "#"], 10);
+                    
+                    if (result && (result.match.includes(">") || result.match.includes("#"))) {
+                        term.write(`\r\n[INFO] Unexpectedly logged in!\r\n`);
+                        loggedIn = true;
+                        usedPair = [pass1, pass2];
+                        break;
+                    }
+                    
+                    // Wait for Password: prompt to appear for next pair
+                    if (result && result.match.includes("Bad password")) {
+                        term.write(`\r\n[INFO] Bad password received. Waiting for Password: prompt...\r\n`);
+                        result = await waitForAny(["Password:"], 10);
+                        if (result) {
+                            term.write(`\r\n[INFO] Password: prompt ready for next pair.\r\n`);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!loggedIn) {
+            term.write("\r\n[ERROR] All 4 password pairs failed.\r\n");
+            term.write("\r\n[INFO] Please use 'Router Recovery (ROMMON)' to reset the password.\r\n");
+            errorProgress(progressId, 'All passwords failed');
+            alert("All 4 password pairs failed.\n\n비밀번호를 모르는 경우:\n→ 'Router Recovery (ROMMON)' 버튼을 사용하세요.\n\n(Power off → Break key → rommon mode)");
+            return;
+        }
+
+        // Check if at > prompt, need enable
+        term.write("\r\n[INFO] Checking current mode...\r\n");
+        globalBuffer = "";
+        await sendCmd("");
+        let result = await waitForAny([">", "#"], 5);
+        
+        if (result && result.match.includes(">")) {
+            term.write("\r\n[INFO] At user mode (>), sending enable...\r\n");
+            await sendCmd("enable");
+            result = await waitForAny(["Password:", "#"], 10);
+            
+            if (result && result.match.includes("Password:")) {
+                for (const pass of ["cisco", "class"]) {
+                    term.write(`\r\n[INFO] Enable password: ${pass}\r\n`);
+                    globalBuffer = "";
+                    await sendCmd(pass);
+                    result = await waitForAny(["#", "Password:"], 10);
+                    if (result && result.match.includes("#")) break;
+                }
+            }
+        }
+
+        term.write("\r\n[INFO] Now at privileged mode (#)!\r\n");
 
         // Step 2: Write Erase
         updateProgress(progressId, 2, 'Erasing config...');
+        term.write("\r\n[INFO] Sending: write erase\r\n");
+        globalBuffer = "";
         await sendCmd("write erase");
-        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
-          await sendCmd("");
+        
+        if (await waitForAny(["confirm", "]"], 10)) {
+            await sendCmd("");
         }
         
-        // Wait for prompt return
-        if (!(await waitForAny(["Router#", "Switch#"], 20))) return;
+        if (!(await waitForAny(["#"], 20))) {
+            errorProgress(progressId, 'Timeout');
+            return;
+        }
 
         // Step 3: Reload
         updateProgress(progressId, 3, 'Reloading...');
+        term.write("\r\n[INFO] Sending: reload\r\n");
+        globalBuffer = "";
         await sendCmd("reload");
 
-         // Handle confirmation
-        if (await waitForAny(["Proceed", "confirm", "yes/no"], 10)) {
-             await sendCmd("");
-        }
+        result = await waitForAny(["Save?", "yes/no", "Proceed", "confirm"], 10);
         
-        // Handle Save?
-         const saveCheck = await waitForAny(["Save?", "yes/no"], 5);
-         if (saveCheck) {
-             await sendCmd("no");
-             await sendCmd("");
-         }
+        if (result && (result.match.includes("Save") || result.match.includes("yes/no"))) {
+            await sendCmd("no");
+            if (await waitForAny(["Proceed", "confirm"], 5)) {
+                await sendCmd("");
+            }
+        } else if (result) {
+            await sendCmd("");
+        }
 
         completeProgress(progressId);
-        alert("Router Quick Reset Complete! Device is rebooting.");
+        const pairStr = usedPair[1] ? `${usedPair[0]} + ${usedPair[1]}` : usedPair[0];
+        term.write(`\r\n[INFO] Router Reset Complete! Used: ${pairStr}\r\n`);
+        alert(`Router Reset Complete!\n\nPassword: ${pairStr}\n\nDevice is rebooting.`);
       }
 
       // Router Quick Reset V2 - Click when Router> prompt appears - NO PASSWORD
-      // Flow: Router> -> en -> Router# -> wr -> wr er -> complete -> Router# -> reload
+      // Flow: > -> en -> (> or #) -> wr -> wr er -> complete -> reload
       async function runRouterQuickResetV2(e) {
         if (e) e.stopPropagation();
-        if (!confirm("Quick Reset Router V2?\n\n▶ Click this when you see 'Router>' prompt!\n\nNo password required (enable secret not set)\n\nSteps: en → wr → wr er → reload\n\nThis will ERASE all config!")) return;
+        if (!confirm("Quick Reset Router V2?\n\n▶ Click this when you see '>' prompt (e.g. Router>, R1>)!\n\nNo password required (enable secret not set)\n\nSteps: en → wr → wr er → reload\n\nThis will ERASE all config!")) return;
 
         const progressId = 'progressRouterQuickV2';
         showProgress(progressId);
@@ -1723,52 +1835,47 @@
 
         // Step 1: Enable (no password)
         updateProgress(progressId, 1, 'Entering enable mode...');
-        term.write("\r\n[INFO] Running: en\r\n");
+        term.write("\r\n[INFO] 1. Sending: en\r\n");
         await sendCmd("en");
         
-        // Wait for Router# (no password expected)
-        let result = await waitForAny(["Router#", "Switch#"], 10);
+        // Wait for > or # prompt (any hostname like R1>, R2#, Router#)
+        let result = await waitForAny([">", "#"], 10);
         
         if (!result) {
-            term.write("\r\n[ERROR] Timeout waiting for Router# prompt.\r\n");
+            term.write("\r\n[ERROR] Timeout waiting for prompt.\r\n");
             errorProgress(progressId, 'Timeout');
             return;
         }
         
-        term.write("\r\n[INFO] Enable mode entered! Got Router#\r\n");
+        term.write("\r\n[INFO] Enable mode entered!\r\n");
 
         // Step 2: Write (save current config)
         updateProgress(progressId, 2, 'Running wr...');
-        term.write("\r\n[INFO] Running: wr\r\n");
+        term.write("\r\n[INFO] 2. Sending: wr\r\n");
         globalBuffer = "";
         await sendCmd("wr");
         
-        // Wait for [OK] or Router#
-        await waitForAny(["[OK]", "Router#", "Switch#"], 30);
+        // Wait for [OK] or > or #
+        await waitForAny(["[OK]", ">", "#"], 30);
         
         // Step 3: Write Erase
         updateProgress(progressId, 3, 'Running wr er...');
-        term.write("\r\n[INFO] Running: wr er\r\n");
+        term.write("\r\n[INFO] 3. Sending: wr er\r\n");
         globalBuffer = "";
         await sendCmd("wr er");
         
         // Wait for confirm
         if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
+            term.write("\r\n[INFO] 4. Sending Enter to confirm...\r\n");
             await sendCmd("");
         }
         
         // Wait for "Erase of nvram: complete"
-        term.write("\r\n[INFO] Waiting for 'Erase of nvram: complete'...\r\n");
+        term.write("\r\n[INFO] 5. Waiting for 'Erase of nvram: complete'...\r\n");
         const eraseResult = await waitForAny(["Erase of nvram: complete", "complete"], 60);
         
         if (eraseResult) {
             term.write("\r\n[INFO] Erase of nvram: complete!\r\n");
-        }
-        
-        // Wait for Router# prompt (with date info)
-        term.write("\r\n[INFO] Waiting for Router# prompt...\r\n");
-        if (!(await waitForAny(["Router#", "Switch#"], 60))) {
-            term.write("\r\n[WARN] Prompt not detected, continuing anyway...\r\n");
         }
 
         // Step 4: Reload
