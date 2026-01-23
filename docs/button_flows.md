@@ -1,288 +1,113 @@
 # NetworkingLabRecovery - Button Flow Documentation
 
-This document describes the trigger conditions and execution flow for each button.
+This document describes the **Trigger Conditions** (when to use) and **Execution Flow** (what it does) for each button in the interface.
 
 ---
 
-## Quick Reset Buttons
+## 1. Quick Reset Buttons
+> **Use these when the device is fully booted and showing a prompt.**
 
-### 1. Router Reset for Password:
+### 1-A. Router Reset for Password:
+- **Trigger Condition:** Click when you see the `Password:` prompt.
+- **Use Case:** You are locked out by a console password but want to wipe the device quickly.
+- **Logic:**
+  1. Tries password pairs (`cisco` / `class`).
+  2. Enters `enable` mode.
+  3. Sends `write erase` -> `confirm`.
+  4. Sends `reload` -> Handles `Save? [yes/no]` with `no`.
 
-**Trigger Condition:** Click when you see `Password:` prompt
+### 1-B. Router Reset for No Password
+- **Trigger Condition:** Click when you see the `Router>` prompt (User Mode).
+- **Use Case:** The router has no passwords set, and you want to wipe it.
+- **Logic:**
+  1. Sends `enable` (expects no password).
+  2. Sends `write erase` -> `confirm`.
+  3. Sends `reload` -> Handles `Save? [yes/no]` with `no`.
 
-**Password Pairs Tested:**
-- cisco + class
-
-- (1st)cisco + (2nd)cisco  if 3rd prompt shows password:-> send enter "" -> badpassword -> "" -> password: do another pair
-
-- class + cisco
-- class + class
-
-**Execution Flow:**
-```
-1. For each password pair [pass1, pass2]:
-   a. send: pass1
-   b. wait for: ["Password:", ">", "#", "Bad password", "% "]
-      - if ">" or "#" → SUCCESS (no 2nd password needed)
-      - if "Bad password" or "% " → recover (Enter until Password:) → next pair
-      - if "Password:" → send: pass2
-   c. wait for: ["Password:", ">", "#", "Bad password", "% "]
-      - if ">" or "#" → SUCCESS
-      - else → recover → next pair
-
-2. If at user mode (>):
-   a. send: "enable"
-   b. try passwords: cisco, class
-
-3. send: "write erase"
-4. wait for: ["confirm"] → send ""
-5. wait for: ["#"]
-6. send: "reload"
-7. if Save? → send "no"
-8. COMPLETE
-```
+### 1-C. Switch Quick Reset
+- **Trigger Condition:** Click when you see a `Switch>` prompt or `Password:` prompt.
+- **Use Case:** Wiping a switch that is currently running.
+- **Logic:**
+  1. Tries passwords (`cisco` / `class`) if needed.
+  2. Enters `enable` mode.
+  3. Sends `write erase`.
+  4. Sends `delete vlan.dat` (Important for switches).
+  5. Sends `reload` -> Handles confirmation.
 
 ---
 
-### 2. Router Reset for No Password
+## 2. Password Recovery / Factory Reset
+> **Use these when you are LOCKED OUT or the device needs a full physical reset.**
 
-**Trigger Condition:** Click when you see `>` prompt (e.g. Router>, R1>) - NO PASSWORD
+### 2-A. Router Recovery (Auto)
+- **Trigger Condition:** Device is ON (running).
+- **Use Case:** Standard recovery for ISR/ASR routers.
+- **Logic (Time-Based):**
+  1. Sends `reload`.
+  2. Auto-sends **BREAK signals** to force ROMMON mode.
+  3. **ROMMON:** Sends `confreg 0x2142` -> `reset`.
+  4. **Boot Wait (1m 50s):** Blindly waits for reboot.
+  5. **Config Check:** Waits for `Initial Configuration Dialog`.
+     - If found, sends `no`.
+  6. **Wait 15s:** Waits for logs to settle.
+  7. **Wake-up:** Sends Enters to get `Router>` prompt.
+  8. **Recovery Commands:**
+     - `enable`
+     - `conf t`
+     - `config-register 0x2102` (Restore normal boot)
+     - `end`
+     - `write erase` (Wipe config)
+     - `reload` (Reboot clean)
 
-**Execution Flow:**
-```
-1. send: "en"
-2. wait for: [">", "#"] (any hostname: R1>, R2#, Router#)
-3. send: "wr"
-4. wait for: ["[OK]", ">", "#"]
-5. send: "wr er"
-6. wait for: ["confirm", "]"]
-7. send: "" (Enter)
-8. wait for: ["Erase of nvram: complete", "complete"] (timeout: 60s)
-9. send: "reload"
-10. wait for: ["Save?", "yes/no", "Proceed", "confirm"]
-    - if "Save?" or "yes/no" → send "no"
-11. wait for: ["Proceed", "confirm"] → send ""
-12. COMPLETE
-```
+### 2-B. Router Recovery (Manual)
+- **Trigger Condition:** Device is OFF (Power Cycle).
+- **Use Case:** Fallback if Auto fails, or device is stuck.
+- **Logic:**
+  1. Manual Step: Turn device OFF -> ON.
+  2. Script sends **BREAK signals** immediately to catch ROMMON.
+  3. Once `rommon 1 >` is detected, follows the same steps as **Auto Recovery** (Step 3 onwards).
 
----
+### 2-C. Switch Factory Reset (Boot Mode)
+- **Trigger Condition:** Device is at `switch:` prompt (Bootloader).
+- **Use Case:** Locked switch (2960/3560/3750). Requires holding 'MODE' button during power-on.
+- **Logic:**
+  1. Sends `flash_init`.
+  2. Deletes config files:
+     - `delete flash:vlan.dat`
+     - `delete flash:config.text`
+     - `delete flash:private-config.text`
+  3. Sends `reset` to reboot.
 
-### 3. Switch Quick Reset
-
-**Password Pairs Tested:**
-- cisco + cisco
-- cisco + class
-- class + cisco
-- class + class
-
-**Execution Flow:**
-```
-1. For each password pair [pass1, pass2]:
-   a. send: pass1
-   b. wait for: ["Password:", ">", "#", "Bad password", "% "]
-      - if ">" or "#" → SUCCESS (no 2nd password needed)
-      - if "Bad password" or "% " → recover (Enter until Password:) → next pair
-      - if "Password:" → send: pass2
-   c. wait for: ["Password:", ">", "#", "Bad password", "% "]
-      - if ">" or "#" → SUCCESS
-      - else → recover → next pair
-
-2. send: "write erase"
-3. wait for: ["confirm", "]", "[confirm]"]
-4. send: "" (Enter)
-5. wait for: ["Switch#", "Router#"]
-6. send: "delete vlan.dat"
-7. wait for: ["?"] → send "y"
-
-8. send: "reset" -> yes
-9. wait for: ["Save?", "yes/no", "Proceed", "confirm"]
-   - if "Save?" or "yes/no" → send "no"
-10. wait for: ["Proceed", "confirm"] → send ""
-11. COMPLETE
-```
+### 2-D. 9200 Recovery
+- **Trigger Condition:** Catalyst 9200/9300 at `switch:` prompt.
+- **Use Case:** Newer Catalyst switches use a specific variable to bypass password.
+- **Phase 1 (Boot):**
+  1. Sends `SWITCH_IGNORE_STARTUP_CFG=1`.
+  2. Sends `boot`.
+- **Phase 2 (Reset):** (Click after Phase 1 boot is complete)
+  1. Enters `enable` mode (now bypassed).
+  2. Sends `write erase`.
+  3. Restores variable: `no system ignore startupconfig switch all`.
+  4. Sends `reload`.
 
 ---
 
-## Password Recovery / Factory Reset Buttons
+## 3. Utility Buttons
 
-### 4. Router Recovery (ROMMON)
-
-### 4. Router Recovery (ROMMON)
-
-**Trigger Condition:** Click button (starts with auto-reload & break)
-
-**Execution Flow:**
-```
-0. send: "reload"
-   - Confirm with "no" if Save? prompt appears
-   - Wait for reboot
-   - Auto-send BREAK signals until "rommon 1 >" appears
-
-1. send: "confreg 0x2142"
-3. wait for: ["rommon 2 >"]
-4. send: "reset" 1min 50s
-
-check Enter -> enter -> wait 20s
-
-after boot
-router>
-5. send: "" (Enter)
-6. send: "enable"
-7. send: "conf t"
-8. wait for: ["(config)#"]
-9. send: "config-register 0x2102"
-10. send: "end"
-11. wait for: ["Router#"]
-12. send: "write erase"
-17. send: "reload"
-if System configuration has been modified. Save? [Yes/No]:
-18. send: "no"
-When asked to reload, type yes or press Enter.
-19. COMPLETE
-```
+### 3-A. Test Connection
+- **Trigger Condition:** Serial port connected.
+- **Logic:** Sends an empty `Enter` to see if the device responds. Displays the detected prompt/state.
 
 ---
 
-### 5. Switch Reset (Boot Mode)
+## 4. Helper Logic Details
 
-**Trigger Condition:** Device is at `switch:` prompt
+### Smart Boot Wait (Time-Based Strategy)
+Instead of complex prompt detection which can fail due to log flooding, the Router Recovery now uses a robust time-based sequence:
+1. **Hard Wait:** 110 seconds (covers most boot times).
+2. **Dialog Check:** Specifically looks for `[yes/no]` prompt to bypass the setup wizard.
+3. **Log Bypass:** Waits an extra 15 seconds for `GDOI`/`ISAKMP` logs to flush.
+4. **Final Wake-up:** Sends 3 Enters to ensure the prompt appears.
 
-**Execution Flow:**
-```
-1. send: "dir flash"
-2. wait for: ["switch:"] 
-3. send: "delete flash:vlan.dat"
-4. wait for: ["?"] → send "y"
-5. wait for: ["switch:"]
-6. send: "delete flash:config.text"
-7. wait for: ["?"] → send "y"
-8. wait for: ["switch:"]
-9. send: "delete flash:private-config.text"
-10. wait for: ["?"] → send "y"
-11. wait for: ["switch:"]
-12. send: "reset"
-13. wait for: ["?"] → send "y"
-14. COMPLETE
-```
-
----
-
-### 6. 9200 Recovery
-
-**Trigger Condition:** Catalyst 9200 in Boot Mode
-
-**Execution Flow:**
-```
-// 버튼 1 과정
-run from switch: prompt
-1. send: "SWITCH_IGNORE_STARTUP_CFG=1"
-2. send: "boot"
-If the switch reloads with a password, please repeat steps 1 and 2.
-
-// 버튼 2 과정
-Switch>가 표시되면 두번째 과정버튼을 누르게하는걸로한다
-4. send: "enable"
-5. wait for: ["Switch#"]
-6. send: "write erase"
-9. wait for: ["Switch#"]
-send: "write memory"
-wait for: ["Switch#"]
-send ""
-
-10. send: "conf t"
-11. wait for: ["(config)#"]
-12. send: "no system ignore startupconfig switch all"
-check output Applying config on
-if not, do again
-
-11. wait for: ["(config)#"]
-13. send: "exit"
-14. wait for: ["Switch#"]
-15. send: "reload"
-16. wait for: ["System Configuration has been modified. Save? [Yes/No]:"]
-17. send: "no"
-20. COMPLETE
-```
-
-
-## Utility Buttons
-
-### 7. Test Connection
-
-**Trigger Condition:** Serial port connected
-
-**Execution Flow:**
-```
-1. send: "" (Enter)
-2. wait for: ["Router>", "Router#", "Switch>", "Switch#", 
-              "rommon", "switch:", ">", "#", "Password:"] (timeout: 5s)
-3. Display result in terminal
-4. COMPLETE
-```
-
----
-
-### 8. Set Test Passwords
-
-**Trigger Condition:** Device at any prompt state
-
-**Execution Flow:**
-```
-1. send: "" (Enter)
-2. wait for: ["initial configuration dialog", "[yes/no]", 
-              "Router>", "Switch>", "Router#", "Switch#"] (timeout: 10s)
-   - if "initial configuration dialog" or "[yes/no]" → send "no"
-3. wait for: ["Router>", "Switch>", "Router#", "Switch#"] (timeout: 60s)
-4. if at ">" prompt → call tryEnableWithPasswords()
-5. send: "conf t"
-6. wait for: ["(config)#"]
-7. send: "enable secret class"
-8. send: "line con 0"
-9. wait for: ["(config-line)#"]
-10. send: "password cisco"
-11. send: "login"
-12. send: "exit"
-13. send: "exit"
-14. wait for: ["Router#", "Switch#"]
-15. send: "write memory"
-16. wait for: ["[OK]", "Router#", "Switch#"]
-17. COMPLETE
-```
-
----
-
-## Helper Functions
-
-### tryEnableWithPasswords()
-
-**Purpose:** Try to enter privileged mode with common passwords
-
-**Flow:**
-```
-1. send: "enable"
-2. wait for: ["Password:", "Router#", "Switch#", "Router>", "Switch>"]
-3. Cases:
-   - "Router#" or "Switch#" → already enabled, return true
-   - "Router>" or "Switch>" → at user prompt, return true
-   - "Password:" → try passwords:
-     a. send "cisco" → check result
-     b. if fail, send "class" → check result
-     c. if Router> returned → send "enable" → try "class" then "cisco"
-4. return true/false
-```
-
-### smartBootWait(timeoutSec)
-
-**Purpose:** Wait for device to boot, handling prompts automatically
-
-**Watches for:**
-- `Router>`, `Router#`, `Switch>`, `Switch#` → return prompt
-- `rommon` → return rommon mode
-- `initial configuration dialog`, `[yes/no]` → send "no", continue waiting
-- Sends empty Enter every 2 seconds as keepalive
-
-### waitForAny(patterns, timeoutSec, options)
-
-**Purpose:** Wait for any of the specified patterns in terminal output
-
-**Returns:** `{match: "matched pattern"}` or `null` on timeout
+### Reload Confirmation
+To prevent "hanging" at the final confirmation step (`Proceed with reload?`), the script now sends **3 consecutive Enters** (0.5s interval) to ensure the device acknowledges the command.
