@@ -11,8 +11,10 @@ This document describes the trigger conditions and execution flow for each butto
 **Trigger Condition:** Click when you see `Password:` prompt
 
 **Password Pairs Tested:**
-- cisco + cisco
 - cisco + class
+
+- (1st)cisco + (2nd)cisco  if 3rd prompt shows password:-> send enter "" -> badpassword -> "" -> password: do another pair
+
 - class + cisco
 - class + class
 
@@ -67,13 +69,24 @@ This document describes the trigger conditions and execution flow for each butto
 
 ### 3. Switch Quick Reset
 
-**Trigger Condition:** Connected to device
+**Password Pairs Tested:**
+- cisco + cisco
+- cisco + class
+- class + cisco
+- class + class
 
 **Execution Flow:**
 ```
-1. call: tryEnableWithPasswords()
-   - send: "enable"
-   - try passwords: cisco, class
+1. For each password pair [pass1, pass2]:
+   a. send: pass1
+   b. wait for: ["Password:", ">", "#", "Bad password", "% "]
+      - if ">" or "#" → SUCCESS (no 2nd password needed)
+      - if "Bad password" or "% " → recover (Enter until Password:) → next pair
+      - if "Password:" → send: pass2
+   c. wait for: ["Password:", ">", "#", "Bad password", "% "]
+      - if ">" or "#" → SUCCESS
+      - else → recover → next pair
+
 2. send: "write erase"
 3. wait for: ["confirm", "]", "[confirm]"]
 4. send: "" (Enter)
@@ -94,16 +107,27 @@ This document describes the trigger conditions and execution flow for each butto
 
 ### 4. Router Recovery (ROMMON)
 
-**Trigger Condition:** Device is at `rommon 1 >` prompt
+### 4. Router Recovery (ROMMON)
+
+**Trigger Condition:** Click button (starts with auto-reload & break)
 
 **Execution Flow:**
 ```
+0. send: "reload"
+   - Confirm with "no" if Save? prompt appears
+   - Wait for reboot
+   - Auto-send BREAK signals until "rommon 1 >" appears
+
 1. send: "confreg 0x2142"
 3. wait for: ["rommon 2 >"]
 4. send: "reset"
 reset -> The router will restart—wait for it to fully boot.
+하지만얼마나 기다려야하는지 모르고 
+% Please answer 'yes' or 'no'.
+Would you like to enter the initial configuration dialog? [yes/no]: 이게 나오면 no로하고 다음으로 넘어가야함 Router>가 나올수도있음
 
 after boot
+router>
 5. send: "" (Enter)
 6. send: "enable"
 7. wait for: ["Router#"]

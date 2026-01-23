@@ -825,41 +825,60 @@
           </div>
 
           <!-- Router Card -->
+          <!-- Router Recovery (Auto) -->
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
               <div class="card-title">
                 <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#1a1a1a;border:1px solid #444;margin-right:6px;"></span>
-                <span>Router Password Recovery</span>
+                <span>Router Recovery (Auto)</span>
                 <span class="tag">ISR / ASR</span>
               </div>
             </div>
             <div class="card-body">
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong style="color:#22c55e;">▶ Use this first (Reloads Router)</strong>
+              </div>
               <ul class="steps-list">
-                <li class="highlight">Turn <strong>OFF</strong> the router.</li>
-                <li>Turn it <strong>ON</strong>.</li>
-                <li>
-                  Immediately press <strong>Ctrl + Break</strong> (or use Break
-                  button if available) repeatedly. <br /><button
-                    onclick="sendBreakSignal(event)"
-                    class="btn-connect"
-                    style="margin-top: 5px; background: #ef4444"
-                  >
-                    Send Break
-                  </button>
-                </li>
-                <li>
-                  Wait until you see
-                  <span class="code-snippet">rommon 1 ></span>.
-                </li>
-                <li>Then click <strong>Start Recovery</strong> below.</li>
+                <li>Script sends <strong>reload</strong> command.</li>
+                <li>Auto-sends <strong>Break signals</strong> until ROMMON.</li>
+                <li>Restores config automatically.</li>
               </ul>
               <button
                 id="btnRouter"
                 class="btn-run"
-                onclick="runRouterRecovery(event)"
+                onclick="runRouterRecoveryAuto(event)"
                 disabled
               >
-                <span>Start Router Recovery</span>
+                <span>Start Auto Recovery</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Router Recovery (Manual) -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#ef4444;border:1px solid #991b1b;margin-right:6px;"></span>
+                <span>Router Recovery (Manual)</span>
+                <span class="tag">Fallback</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong style="color:#ef4444;">▶ Use if Auto fails (Power Cycle)</strong>
+              </div>
+              <ul class="steps-list">
+                <li>Turn <strong>OFF</strong> → Turn <strong>ON</strong>.</li>
+                <li>Click button immediately.</li>
+                <li>Script auto-sends Break until <span class="code-snippet">rommon 1 ></span>.</li>
+              </ul>
+              <button
+                id="btnRouterManual"
+                class="btn-run"
+                onclick="runRouterRecoveryManual(event)"
+                disabled
+              >
+                <span>Start Manual Recovery</span>
               </button>
             </div>
           </div>
@@ -898,35 +917,67 @@
             </div>
           </div>
 
-          <!-- 9200 Card -->
+          <!-- 9200 Recovery - Phase 1: Boot -->
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
               <div class="card-title">
                 <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#a8a29e;border:1px solid #78716c;margin-right:6px;"></span>
-                <span>9200 Series Recovery</span>
+                <span>9200 Recovery - Phase 1 (Boot)</span>
                 <span class="tag">Catalyst 9200/9300</span>
               </div>
             </div>
             <div class="card-body">
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong style="color:#f59e0b;">▶ Click when you see "switch:" prompt</strong>
+              </div>
               <ul class="steps-list">
                 <li>
                   Unplug power. Hold
-                  <strong class="code-snippet">MODE</strong> button
-                  <span style="color:#94a3b8;font-size:0.85em;">(Light Gray Button)</span>.
+                  <strong class="code-snippet">MODE</strong> button.
                 </li>
                 <li>
                   Reconnect power. Hold MODE until
                   <span class="code-snippet">switch:</span> prompt.
                 </li>
-                <li>This process takes about 10 minutes (full boot).</li>
+                <li>This sets IGNORE_STARTUP_CFG and boots.</li>
               </ul>
               <button
-                id="btn9200"
+                id="btn9200Boot"
                 class="btn-run"
-                onclick="run9200Recovery(event)"
+                onclick="run9200Boot(event)"
                 disabled
               >
-                <span>Start 9200 Recovery</span>
+                <span>Phase 1: Boot</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 9200 Recovery - Phase 2: Reset -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#22c55e;border:1px solid #16a34a;margin-right:6px;"></span>
+                <span>9200 Recovery - Phase 2 (Reset)</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong style="color:#22c55e;">▶ Click when you see "Switch>" prompt</strong>
+              </div>
+              <div style="padding:5px 0 10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong>Steps:</strong>
+                <span class="code-snippet">enable</span> →
+                <span class="code-snippet">write erase</span> →
+                <span class="code-snippet">no system ignore...</span> →
+                <span class="code-snippet">reload</span>
+              </div>
+              <button
+                id="btn9200Reset"
+                class="btn-run"
+                onclick="run9200Reset(event)"
+                disabled
+              >
+                <span>Phase 2: Reset</span>
               </button>
             </div>
           </div>
@@ -1059,7 +1110,7 @@
       }
 
       function enableControls(enabled) {
-        const ids = ["btnRouter", "btnSwitch", "btn9200", "btnRouterQuick", "btnRouterQuickV2", "btnSwitchQuick", "btnTestConnection", "btnSetPasswords"];
+        const ids = ["btnRouter", "btnRouterManual", "btnSwitch", "btn9200Boot", "btn9200Reset", "btnRouterQuick", "btnRouterQuickV2", "btnSwitchQuick", "btnTestConnection", "btnSetPasswords"];
         ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
       }
 
@@ -1209,21 +1260,39 @@
       // --- Smart Boot Helper ---
       // Attempts to get to a standard prompt (Router> / Router# / Switch> / Switch#)
       // handling "Press RETURN", "initial config dialog", etc. along the way.
+      // --- Smart Boot Helper ---
+      // Attempts to get to a standard prompt (Router> / Router# / Switch> / Switch#)
+      // handling "Press RETURN", "initial configuration dialog", etc. along the way.
+      // Checks every 5 seconds (long timeout checks)
       async function smartBootWait(timeoutSec = 300) {
          const start = Date.now();
          
          while (Date.now() - start < timeoutSec * 1000) {
-             // 1. Look for known prompts or interrupt triggers
-             // We actively send "Enter" every 5 seconds to wake it up or get past "Press RETURN"
+             // Check every 5s but send keep-alive Enter every 0.5s to push through logs
              const result = await waitForAny(
-               ["Router>", "Router#", "Switch>", "Switch#", "rommon", "initial configuration dialog", "would you like to enter the initial configuration dialog", "[yes/no]"], 
+               ["Router>", "Router#", "Switch>", "Switch#", "rommon", "initial configuration dialog", "would you like to enter the initial configuration dialog", "[yes/no]", "IOS Image Load Test", "Press RETURN", "System restarted", "COLDSTART", "GDOI", "ISAKMP"], 
                5, 
-               { sendKeepAlive: true, keepAliveInterval: 2000, keepAliveCmd: "" } // Send empty Enter
+               { sendKeepAlive: true, keepAliveInterval: 500, keepAliveCmd: "" }
              );
 
-             if (!result) continue; // Timeout of mini-wait, loop again checking overall timeout
+             if (!result) continue; 
 
              const m = result.match;
+             
+             if (m.includes("IOS Image Load Test")) {
+                 term.write("\r\n[INFO] IOS Image Load Test detected... waiting for boot completion...\r\n");
+                 continue;
+             }
+
+             // Handle "Press RETURN" and other post-boot log flurries
+             if (m.includes("Press RETURN") || m.includes("System restarted") || m.includes("COLDSTART") || m.includes("GDOI") || m.includes("ISAKMP")) {
+                 term.write("\r\n[AUTO] Post-boot activity detected. Sending wake-up Enters...\r\n");
+                 for(let i=0; i<3; i++) {
+                     await sendCmd("");
+                     await new Promise(r => setTimeout(r, 500));
+                 }
+                 continue;
+             }
              
              if (m.includes("Router") || m.includes("Switch")) {
                  return { type: "prompt", prompt: m };
@@ -1236,8 +1305,8 @@
              if (m.includes("initial configuration") || m.includes("enter the initial") || m.includes("[yes/no]")) {
                  term.write("\r\n[AUTO] Initial config dialog detected. Sending 'no'...\r\n");
                  await sendCmd("no");
+                 await new Promise(r => setTimeout(r, 500)); // Ensure 'no' is processed
                  await sendCmd("");
-                 // Loop back to wait for prompt
              }
          }
          return { type: "timeout" };
@@ -1247,96 +1316,202 @@
       // 6. FACTORY RESET LOGIC (Password Recovery)
       // ==========================================
 
-      async function runRouterRecovery(e) {
+      // 6. Router Recovery (Auto - Reload & Auto-Break)
+      async function runRouterRecoveryAuto(e) {
         if (e) e.stopPropagation();
-        if (!confirm("Start Router Password Recovery Sequence?")) return;
+        if (!confirm("Router Recovery (Auto-Reload)?\n\n▶ Steps:\n1. reload\n2. Auto-send BREAK signal\n3. confreg 0x2142\n4. reset & boot\n5. wipe config & restore")) return;
 
-        term.write("\r\n[INFO] Starting Router Recovery Script...\r\n");
-
-        // rommon 1 > //
-        await sendCmd("confreg 0x2142");
-        await sendCmd("");
-
-        // Use smart wait for rommon 2
-        const rommonRes = await waitForAny(["rommon 2 >"], 30, { sendKeepAlive: true, keepAliveInterval: 2000 });
-        if (!rommonRes) return;
-
-        await sendCmd("reset");
-        await sendCmd("");
-        term.write(
-          "\r\n[INFO] Router is rebooting. This may take a while...\r\n"
-        );
-
-        // SMART WAIT: Handles "initial config dialog", "Press RETURN", "Router>", "Router#"
-        const bootRes = await smartBootWait(600); // 10 min timeout for boot
+        term.write("\r\n[INFO] Starting Router Recovery (Auto-Reload)...\r\n");
         
-        if (bootRes.type === "timeout") {
-             alert("Timeout waiting for router to boot.");
-             return;
-        }
-
-        // Track the final boot result (could be bootRes or bootRes2)
-        let finalBootRes = bootRes;
-
-        // If we are at rommon again, something went wrong? Or maybe we just need to boot?
-        if (bootRes.type === "rommon") {
-             term.write("\r\n[WARN] Landed in ROMMON again? Trying boot...\r\n");
-             await sendCmd("boot");
-             // Wait again
-             const bootRes2 = await smartBootWait(600);
-             if (bootRes2.type !== "prompt") {
-                 alert("Failed to boot from ROMMON.");
-                 return;
-             }
-             finalBootRes = bootRes2; // Use the new result
-        }
-
-        // Now we should be at a prompt. Check if we need enable.
-        if (finalBootRes.prompt && (finalBootRes.prompt.includes(">") || finalBootRes.prompt.includes("Switch>"))) {
-             await sendCmd("enable");
-             await sendCmd("");
-             if (!(await waitForAny(["Router#", "Switch#", "Password:"], 10))) return;
-             // If password asked? (Shouldn't happen with 0x2142 but just in case)
-             // We can assume we are good or handle it if needed.
-        }
-
-        term.write("\r\n[INFO] Device booted and enabled. Proceeding with wipe...\r\n");
-
-        await sendCmd("write erase");
-        // Handle confirm prompts
-        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
-          await sendCmd("");
-        }
-
-        // Wait for prompt before proceeding (instead of blind 2s wait)
-        if (!(await waitForAny(["Router#", "Switch#"], 20))) return;
-
-        await sendCmd("conf t");
-        if (!(await waitForAny(["(config)#", "(config)"], 10))) return;
-
-        await sendCmd("config-register 0x2102");
-        await sendCmd("end");
-
-        if (!(await waitForAny(["Router#", "Switch#"], 10))) return;
-
+        // Step 0: Reload and Break
+        term.write("\r\n[INFO] 0. Sending: reload\r\n");
+        globalBuffer = "";
         await sendCmd("reload");
-
-        // Handle "Save? [yes/no]:" prompt - need to send "no" explicitly
-        // Use waitForAny to detect "Save?" or "Proceed" immediately
-        const reloadCheck = await waitForAny(["Save?", "yes/no", "confirm", "Proceed"], 10, { sendKeepAlive: false });
         
+        // Handle Save? or Proceed
+        const reloadCheck = await waitForAny(["Save?", "yes/no", "confirm", "Proceed"], 10, { sendKeepAlive: false });
         if (reloadCheck && (reloadCheck.match.includes("Save") || reloadCheck.match.includes("yes/no"))) {
              await sendCmd("no");
-             // Might ask confirm after no
-             if (await waitForAny(["confirm", "Proceed"], 5)) {
-                 await sendCmd("");
-             }
-        } else {
-             // Just blind fire confirmation if we didn't catch the exact prompt or it's just "Proceed"
+             if (await waitForAny(["confirm", "Proceed"], 5)) await sendCmd("");
+        } else if (reloadCheck) {
              await sendCmd("");
         }
+        
+        term.write("\r\n[INFO] Waiting for system to reload...\r\n");
+        await new Promise(r => setTimeout(r, 3000)); // Wait a bit for reload to start
+        
+        term.write("\r\n[INFO] Starting BREAK signal loop (waiting for rommon 1 >)...\r\n");
+        
+        // Send Break until rommon 1 > appears
+        // Timeout after 60 seconds of trying
+        const breakStart = Date.now();
+        let inRommon = false;
+        
+        while (Date.now() - breakStart < 60000) {
+            // Check for rommon 1
+            if (globalBuffer.includes("rommon 1 >")) {
+                inRommon = true;
+                break;
+            }
+            
+            // Send Break
+            await sendBreakSignal();
+            await new Promise(r => setTimeout(r, 1000)); // Wait 1s between breaks
+        }
+        
+        if (!inRommon) {
+             // One last check
+             if (!globalBuffer.includes("rommon 1 >")) {
+                 alert("Could not force ROMMON mode. Please check connection.");
+                 return;
+             }
+        }
+        
+        term.write("\r\n[INFO] ROMMON mode detected!\r\n");
+        await runRouterRecoverySteps();
+      }
 
-        alert("Router Recovery Complete! Device is rebooting.");
+      // 6b. Router Recovery (Manual - Power Cycle)
+      async function runRouterRecoveryManual(e) {
+        if (e) e.stopPropagation();
+        if (!confirm("Router Recovery (Manual Power)?\n\n▶ Steps:\n1. Turn OFF router\n2. Turn ON router\n3. Click OK immediately\n4. Script will auto-send Break signals until ROMMON")) return;
+
+        term.write("\r\n[INFO] Starting Router Recovery (Manual Power)...\r\n");
+        term.write("\r\n[INFO] Auto-sending Break signals... Waiting for 'rommon 1 >'...\r\n");
+        
+        globalBuffer = "";
+        const breakStart = Date.now();
+        let inRommon = false;
+        
+        // Try for 120 seconds (manual cycle might take longer)
+        while (Date.now() - breakStart < 120000) {
+            if (globalBuffer.includes("rommon 1 >")) {
+                inRommon = true;
+                break;
+            }
+            await sendBreakSignal();
+            await new Promise(r => setTimeout(r, 1000)); // 1 sec interval
+        }
+        
+        if (!inRommon) {
+             if (!globalBuffer.includes("rommon 1 >")) {
+                 alert("Timeout waiting for 'rommon 1 >'.");
+                 return;
+             }
+        }
+
+        term.write("\r\n[INFO] ROMMON mode detected!\r\n");
+        await runRouterRecoverySteps();
+      }
+
+      // Shared Recovery Steps (after rommon 1 >)
+      async function runRouterRecoverySteps() {
+        // Step 1: confreg 0x2142
+        term.write("\r\n[INFO] 1. Sending: confreg 0x2142\r\n");
+        await sendCmd("confreg 0x2142");
+
+        // Step 2: Wait for rommon 2 >
+        term.write("\r\n[INFO] 2. Waiting for rommon 2 >...\r\n");
+        if (!(await waitForAny(["rommon 2 >", "rommon 2>"], 30))) {
+            alert("Timeout waiting for rommon 2 >");
+            return;
+        }
+
+        // Step 3: reset
+        term.write("\r\n[INFO] 3. Sending: reset\r\n");
+        await sendCmd("reset");
+        term.write("\r\n[INFO] Router is rebooting. This may take several minutes (checking every 5s)...\r\n");
+        
+        // Clear buffer before boot wait to avoid old prompts
+        globalBuffer = "";
+
+        // Step 4: Wait for boot - use smartBootWait (checks every 5s, handles "initial config dialog")
+        const bootRes = await smartBootWait(600); // 10 min timeout
+        
+        if (bootRes.type === "timeout") {
+            alert("Timeout waiting for router to boot.");
+            return;
+        }
+
+        // If landed in rommon again, try boot
+        if (bootRes.type === "rommon") {
+            term.write("\r\n[WARN] Still in ROMMON, sending: boot\r\n");
+            await sendCmd("boot");
+            const bootRes2 = await smartBootWait(600);
+            if (bootRes2.type !== "prompt") {
+                alert("Failed to boot from ROMMON.");
+                return;
+            }
+        }
+
+        // Step 5: Send Enter
+        term.write("\r\n[INFO] 4. Boot complete! Sending Enter...\r\n");
+        await sendCmd("");
+        await waitForAny([">", "#"], 10);
+
+        // Step 6: enable
+        term.write("\r\n[INFO] 5. Sending: enable\r\n");
+        await sendCmd("enable");
+
+        // Step 7: Wait for # (no password since 0x2142 bypasses)
+        term.write("\r\n[INFO] 6. Waiting for #...\r\n");
+        if (!(await waitForAny(["#"], 10))) {
+            alert("Timeout waiting for enable mode.");
+            return;
+        }
+
+        // Step 8: write erase
+        term.write("\r\n[INFO] 7. Sending: write erase\r\n");
+        await sendCmd("write erase");
+
+        // Step 9: Wait for confirm (geometry of nvram)
+        term.write("\r\n[INFO] 8. Waiting for confirm...\r\n");
+        if (await waitForAny(["confirm", "]", "geometry"], 10)) {
+            await sendCmd("");
+        }
+
+        // Step 10: Wait for #
+        term.write("\r\n[INFO] 9. Waiting for #...\r\n");
+        if (!(await waitForAny(["#"], 20))) return;
+
+        // Step 11: conf t
+        term.write("\r\n[INFO] 10. Sending: conf t\r\n");
+        await sendCmd("conf t");
+
+        // Step 12: Wait for (config)#
+        if (!(await waitForAny(["(config)#", "(config)"], 10))) return;
+
+        // Step 13: config-register 0x2102
+        term.write("\r\n[INFO] 11. Sending: config-register 0x2102\r\n");
+        await sendCmd("config-register 0x2102");
+
+        // Step 14: end
+        term.write("\r\n[INFO] 12. Sending: end\r\n");
+        await sendCmd("end");
+
+        // Step 15: Wait for #
+        if (!(await waitForAny(["#"], 10))) return;
+
+        // Step 16: reload
+        term.write("\r\n[INFO] 13. Sending: reload\r\n");
+        await sendCmd("reload");
+
+        // Step 17: Handle Save? prompt
+        term.write("\r\n[INFO] 14. Checking for Save? prompt...\r\n");
+        const result = await waitForAny(["Save?", "yes/no", "Proceed", "confirm"], 10);
+        
+        if (result && (result.match.includes("Save") || result.match.includes("yes/no"))) {
+            term.write("\r\n[INFO] 15. Sending: no\r\n");
+            await sendCmd("no");
+            if (await waitForAny(["Proceed", "confirm"], 5)) {
+                await sendCmd("");
+            }
+        } else if (result) {
+            await sendCmd("");
+        }
+
+        term.write("\r\n[INFO] Router Recovery Complete! Device is rebooting.\r\n");
+        alert("Router Recovery Complete!\n\nDevice is rebooting with default config.\n\nconfig-register: 0x2102");
       }
 
       async function runSwitchReset(e) {
@@ -1368,66 +1543,113 @@
         alert("Switch is resetting...");
       }
 
-      async function run9200Recovery(e) {
+      // 9200 Recovery - Phase 1: Boot (from switch: prompt)
+      async function run9200Boot(e) {
         if (e) e.stopPropagation();
-        if (!confirm("Start 9200 Recovery?")) return;
+        if (!confirm("9200 Recovery - Phase 1 (Boot)\n\n▶ Click when you see 'switch:' prompt!\n\nSteps:\n1. SWITCH_IGNORE_STARTUP_CFG=1\n2. boot\n\nIf password prompt appears after boot, repeat Phase 1.")) return;
 
-        term.write("\r\n[INFO] Starting 9200 Recovery Script...\r\n");
+        term.write("\r\n[INFO] Starting 9200 Recovery - Phase 1 (Boot)...\r\n");
 
+        // Step 1: Set ignore startup config
+        term.write("\r\n[INFO] 1. Sending: SWITCH_IGNORE_STARTUP_CFG=1\r\n");
         await sendCmd("SWITCH_IGNORE_STARTUP_CFG=1");
-        await new Promise((r) => setTimeout(r, 500)); // Short buffer for pre-boot env
+        await new Promise(r => setTimeout(r, 500));
 
+        // Step 2: Boot
+        term.write("\r\n[INFO] 2. Sending: boot\r\n");
         await sendCmd("boot");
-        term.write("\r\n[INFO] Booting image... (approx 5-10 mins)\r\n");
-
-        // SMART WAIT for 9200
-        const bootRes = await smartBootWait(900);
         
-        if (bootRes.type === "timeout") {
-            alert("Timeout waiting for switch to boot.");
+        term.write("\r\n[INFO] Switch is booting... (5-15 minutes)\r\n");
+        term.write("\r\n[INFO] When you see 'Switch>' prompt, click 'Phase 2: Reset' button.\r\n");
+        
+        alert("Phase 1 Complete!\n\nSwitch is booting...\n\nWhen you see 'Switch>' prompt:\n→ Click 'Phase 2: Reset' button");
+      }
+
+      // 9200 Recovery - Phase 2: Reset (from Switch> prompt)
+      async function run9200Reset(e) {
+        if (e) e.stopPropagation();
+        if (!confirm("9200 Recovery - Phase 2 (Reset)\n\n▶ Click when you see 'Switch>' prompt!\n\nSteps:\n1. enable\n2. write erase\n3. write memory\n4. no system ignore startupconfig\n5. reload\n\nThis will ERASE all config!")) return;
+
+        term.write("\r\n[INFO] Starting 9200 Recovery - Phase 2 (Reset)...\r\n");
+
+        // Step 1: enable
+        term.write("\r\n[INFO] 1. Sending: enable\r\n");
+        await sendCmd("enable");
+
+        // Step 2: Wait for Switch#
+        term.write("\r\n[INFO] 2. Waiting for Switch#...\r\n");
+        if (!(await waitForAny(["Switch#", "#"], 10))) {
+            alert("Timeout waiting for Switch#");
             return;
         }
 
-        // Ensure we are enabled
-        await sendCmd("enable");
-        if (!(await waitForAny(["Switch#", "Router#"], 10))) return;
-
+        // Step 3: write erase
+        term.write("\r\n[INFO] 3. Sending: write erase\r\n");
         await sendCmd("write erase");
-        // Confirm write erase
-        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
-             await sendCmd(""); 
+        
+        if (await waitForAny(["confirm", "]"], 10)) {
+            await sendCmd("");
         }
 
-        // Wait for prompt return
-        if (!(await waitForAny(["Switch#", "Router#"], 30))) return;
+        // Step 4: Wait for Switch#
+        term.write("\r\n[INFO] 4. Waiting for Switch#...\r\n");
+        if (!(await waitForAny(["Switch#", "#"], 30))) return;
 
+        // Step 5: write memory
+        term.write("\r\n[INFO] 5. Sending: write memory\r\n");
+        await sendCmd("write memory");
+        
+        await waitForAny(["[OK]", "Switch#", "#"], 30);
+
+        // Step 6: conf t
+        term.write("\r\n[INFO] 6. Sending: conf t\r\n");
         await sendCmd("conf t");
+        
         if (!(await waitForAny(["(config)#"], 10))) return;
 
+        // Step 7: no system ignore startupconfig switch all
+        term.write("\r\n[INFO] 7. Sending: no system ignore startupconfig switch all\r\n");
         await sendCmd("no system ignore startupconfig switch all");
-        await sendCmd("exit");
-
-        if (!(await waitForAny(["Switch#"], 10))) return;
-        await sendCmd("write memory");
-
-        // Wait for [OK] or prompt instead of blind wait
-        await waitForAny(["[OK]", "Switch#", "Router#"], 30);
         
+        // Check for "Applying config on" output
+        let result = await waitForAny(["Applying config", "(config)#"], 10);
+        
+        if (!result || !result.match.includes("Applying")) {
+            term.write("\r\n[WARN] 'Applying config on' not detected. Trying again...\r\n");
+            await sendCmd("no system ignore startupconfig switch all");
+            await waitForAny(["Applying config", "(config)#"], 10);
+        }
+
+        // Step 8: Wait for (config)#
+        term.write("\r\n[INFO] 8. Waiting for (config)#...\r\n");
+        await waitForAny(["(config)#"], 10);
+
+        // Step 9: exit
+        term.write("\r\n[INFO] 9. Sending: exit\r\n");
+        await sendCmd("exit");
+        
+        if (!(await waitForAny(["Switch#", "#"], 10))) return;
+
+        // Step 10: reload
+        term.write("\r\n[INFO] 10. Sending: reload\r\n");
         await sendCmd("reload");
 
-        // Handle confirmation
-        if (await waitForAny(["Proceed", "confirm", "yes/no"], 10)) {
-             await sendCmd("");
-        }
+        // Step 11: Handle Save? prompt
+        term.write("\r\n[INFO] 11. Checking for Save? prompt...\r\n");
+        result = await waitForAny(["Save?", "yes/no", "Proceed", "confirm"], 10);
         
-        // Handle Save?
-         const saveCheck = await waitForAny(["Save?", "yes/no"], 5);
-         if (saveCheck) {
-             await sendCmd("no");
-             await sendCmd("");
-         }
+        if (result && (result.match.includes("Save") || result.match.includes("yes/no"))) {
+            term.write("\r\n[INFO] 12. Sending: no\r\n");
+            await sendCmd("no");
+            if (await waitForAny(["Proceed", "confirm"], 5)) {
+                await sendCmd("");
+            }
+        } else if (result) {
+            await sendCmd("");
+        }
 
-        alert("9200 Recovery Finished!");
+        term.write("\r\n[INFO] 9200 Recovery Complete! Device is rebooting.\r\n");
+        alert("9200 Recovery Complete!\n\nDevice is rebooting with default config.");
       }
 
       // ==========================================
