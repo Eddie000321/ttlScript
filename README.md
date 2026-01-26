@@ -8,6 +8,8 @@ A single-file web application for automating Cisco device recovery and reset pro
 > **🚀 Quick Start**: Download the [offline version](NetworkingLabRecoveryXterm_Offline.html), open it in **Chrome** or **Edge**, and you're ready to go! (No internet required)
 
 > 📖 **See [FLOW.md](FLOW.md) for detailed step-by-step button flow examples.**
+<img width="1352" height="915" alt="Screenshot 2026-01-26 at 2 51 16 PM" src="https://github.com/user-attachments/assets/a4c7ec22-3efe-460c-914d-70be15d24865" />
+
 
 ## Features
 
