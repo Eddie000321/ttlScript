@@ -17,22 +17,29 @@ A single-file web application for automating Cisco device recovery and reset pro
 - **Auto-Enter**: Sends Enter key every 500ms to test device connectivity
 - **Dark/Light Mode**: Toggle theme with 🌙/☀️ button (preference saved to localStorage)
 
-### ✓ Quick Reset (Password Known)
-For devices you can already access via CLI.
+### ✓ Quick Reset
 
-| Device | Steps | Password Testing |
-|--------|-------|------------------|
-| **Router** | `enable` → `write erase` → `reload` | (empty), class, cisco |
-| **Switch** | `enable` → `write erase` → `delete vlan.dat` → `reload` | (empty), class, cisco |
+#### Router Reset
+| Variant | When to Use | Steps |
+|---------|-------------|-------|
+| **for Password:** | Click when you see "Password:" prompt | `enable` → `write erase` → `reload` |
+| **for No Password** | Click when you see "Router>" prompt | `en` → `wr er` → `reload` |
+
+#### Switch Reset
+| Variant | When to Use | Steps |
+|---------|-------------|-------|
+| **for Password:** | Click when you see "Password:" prompt | `enable` → `write erase` → `delete vlan.dat` → `reload` |
+| **for No Password** | Click when you see "Switch>" prompt | `en` → `wr er` → `delete vlan.dat` → `reload` |
 
 ### ⚠ Password Recovery / Factory Reset (Password Unknown)
 For locked-out devices requiring physical intervention.
 
 | Device | Mode Entry | Key Steps |
-|--------|------------|-----------|
-| **Router** | Break signal → ROMMON | `confreg 0x2142` → `reset` → `write erase` → `config-register 0x2102` |
+|--------|------------|--------------|
+| **Router (Auto)** | Script sends Break → ROMMON | `confreg 0x2142` → `reset` → `write erase` → `config-register 0x2102` |
+| **Router (Manual)** | Power cycle + Break signals | User turns OFF/ON, script sends Break until ROMMON |
 | **Switch (2960/3560/3750)** | MODE button + power | `flash_init` → delete config files → `reset` |
-| **Catalyst 9200/9300** | MODE button + power | `SWITCH_IGNORE_STARTUP_CFG=1` → `boot` → `write erase` |
+| **Catalyst 9200/9300** | MODE button + power | Phase 1: `SWITCH_IGNORE_STARTUP_CFG=1` → `boot`<br>Phase 2: `write erase` → `no system ignore...` → `reload` |
 
 ## Files
 

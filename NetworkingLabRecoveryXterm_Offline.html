@@ -726,12 +726,12 @@
                 onclick="runRouterQuickReset(event)"
                 disabled
               >
-                <span>Quick Reset Router</span>
+                <span>Run Script</span>
               </button>
             </div>
           </div>
 
-          <!-- Router Reset for No Password Card (> → en → wr → wr er → reload) -->
+          <!-- Router Reset for No Password Card (> → en → wr er → reload) -->
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
               <div class="card-title">
@@ -749,7 +749,6 @@
               <div style="padding:5px 0 10px 0;color:#94a3b8;font-size:0.85em;">
                 <strong>Steps:</strong>
                 <span class="code-snippet">en</span> →
-                <span class="code-snippet">wr</span> →
                 <span class="code-snippet">wr er</span> →
                 <span class="code-snippet">reload</span>
               </div>
@@ -757,7 +756,6 @@
                 <div class="progress-step" data-step="1"></div>
                 <div class="progress-step" data-step="2"></div>
                 <div class="progress-step" data-step="3"></div>
-                <div class="progress-step" data-step="4"></div>
                 <span class="progress-label">Ready</span>
               </div>
               <button
@@ -766,22 +764,25 @@
                 onclick="runRouterQuickResetV2(event)"
                 disabled
               >
-                <span>Quick Reset Router V2</span>
+                <span>Run Script</span>
               </button>
             </div>
           </div>
 
-          <!-- Switch Quick Reset Card -->
+          <!-- Switch Reset for Password: -->
           <div class="card" onclick="toggleCard(this)">
             <div class="card-header">
-              <div class="card-title">
+               <div class="card-title">
                 <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0f0f0;border:1px solid #999;margin-right:6px;"></span>
-                <span>Switch Quick Reset</span>
+                <span>Switch Reset for Password:</span>
               </div>
             </div>
             <div class="card-body">
-              <div style="padding:10px 0;color:#94a3b8;font-size:0.9em;">
-                <strong>Password Test:</strong>
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong style="color:#f59e0b;">▶ Click when you see "Password:" prompt</strong>
+              </div>
+              <div style="padding:0 0 10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong>Attempts:</strong>
                 <span class="code-snippet">cisco</span> →
                 <span class="code-snippet">class</span>
               </div>
@@ -792,7 +793,7 @@
                 <span class="code-snippet">delete vlan.dat</span> →
                 <span class="code-snippet">reload</span>
               </div>
-              <div id="progressSwitchQuick" class="progress-bar" style="display:none;">
+              <div id="progressSwitchQuickPass" class="progress-bar" style="display:none;">
                 <div class="progress-step" data-step="1"></div>
                 <div class="progress-step" data-step="2"></div>
                 <div class="progress-step" data-step="3"></div>
@@ -800,12 +801,49 @@
                 <span class="progress-label">Ready</span>
               </div>
               <button
-                id="btnSwitchQuick"
+                id="btnSwitchQuickPass"
                 class="btn-run"
-                onclick="runSwitchQuickReset(event)"
+                onclick="runSwitchQuickResetPass(event)"
                 disabled
               >
-                <span>Quick Reset Switch</span>
+                <span>Run Script</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Switch Reset for No Password -->
+          <div class="card" onclick="toggleCard(this)">
+            <div class="card-header">
+              <div class="card-title">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#f0f0f0;border:1px solid #999;margin-right:6px;"></span>
+                <span>Switch Reset for No Password</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div style="padding:10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong style="color:#22c55e;">▶ Click when you see "Switch>" prompt</strong>
+              </div>
+              <div style="padding:0 0 10px 0;color:#94a3b8;font-size:0.85em;">
+                <strong>Steps:</strong>
+                <span class="code-snippet">en</span> →
+                <span class="code-snippet">wr er</span> →
+                <span class="code-snippet">delete vlan.dat</span> →
+                <span class="code-snippet">reload</span>
+              </div>
+              <div id="progressSwitchQuickNoPass" class="progress-bar" style="display:none;">
+                <div class="progress-step" data-step="1"></div>
+                <div class="progress-step" data-step="2"></div>
+                <div class="progress-step" data-step="3"></div>
+                <div class="progress-step" data-step="4"></div>
+                <span class="progress-label">Ready</span>
+              </div>
+              <button
+                id="btnSwitchQuickNoPass"
+                class="btn-run"
+                onclick="runSwitchQuickResetNoPass(event)"
+                disabled
+              >
+                <span>Run Script</span>
               </button>
             </div>
           </div>
@@ -841,7 +879,7 @@
                 onclick="runRouterRecoveryAuto(event)"
                 disabled
               >
-                <span>Start Auto Recovery</span>
+                <span>Run Script</span>
               </button>
             </div>
           </div>
@@ -870,7 +908,7 @@
                 onclick="runRouterRecoveryManual(event)"
                 disabled
               >
-                <span>Start Manual Recovery</span>
+                <span>Run Script</span>
               </button>
             </div>
           </div>
@@ -904,7 +942,7 @@
                 onclick="runSwitchReset(event)"
                 disabled
               >
-                <span>Start Switch Reset</span>
+                <span>Run Script</span>
               </button>
             </div>
           </div>
@@ -939,7 +977,7 @@
                 onclick="run9200Boot(event)"
                 disabled
               >
-                <span>Phase 1: Boot</span>
+                <span>Run Script</span>
               </button>
             </div>
           </div>
@@ -969,7 +1007,7 @@
                 onclick="run9200Reset(event)"
                 disabled
               >
-                <span>Phase 2: Reset</span>
+                <span>Run Script</span>
               </button>
             </div>
           </div>
@@ -1116,7 +1154,7 @@
       }
 
       function enableControls(enabled) {
-        const ids = ["btnRouter", "btnRouterManual", "btnSwitch", "btn9200Boot", "btn9200Reset", "btnRouterQuick", "btnRouterQuickV2", "btnSwitchQuick", "btnTestConnection"];
+        const ids = ["btnRouter", "btnRouterManual", "btnSwitch", "btn9200Boot", "btn9200Reset", "btnRouterQuick", "btnRouterQuickV2", "btnSwitchQuickNoPass", "btnSwitchQuickPass", "btnTestConnection"];
         ids.forEach((id) => (document.getElementById(id).disabled = !enabled));
       }
 
@@ -2055,37 +2093,28 @@
         
         term.write("\r\n[INFO] Enable mode entered!\r\n");
 
-        // Step 2: Write (save current config)
-        updateProgress(progressId, 2, 'Running wr...');
-        term.write("\r\n[INFO] 2. Sending: wr\r\n");
-        globalBuffer = "";
-        await sendCmd("wr");
-        
-        // Wait for [OK] or > or #
-        await waitForAny(["[OK]", ">", "#"], 30);
-        
-        // Step 3: Write Erase
-        updateProgress(progressId, 3, 'Running wr er...');
-        term.write("\r\n[INFO] 3. Sending: wr er\r\n");
+        // Step 2: Write Erase
+        updateProgress(progressId, 2, 'Running wr er...');
+        term.write("\r\n[INFO] 2. Sending: wr er\r\n");
         globalBuffer = "";
         await sendCmd("wr er");
         
         // Wait for confirm
         if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
-            term.write("\r\n[INFO] 4. Sending Enter to confirm...\r\n");
+            term.write("\r\n[INFO] 3. Sending Enter to confirm...\r\n");
             await sendCmd("");
         }
         
         // Wait for "Erase of nvram: complete"
-        term.write("\r\n[INFO] 5. Waiting for 'Erase of nvram: complete'...\r\n");
+        term.write("\r\n[INFO] 4. Waiting for 'Erase of nvram: complete'...\r\n");
         const eraseResult = await waitForAny(["Erase of nvram: complete", "complete"], 60);
         
         if (eraseResult) {
             term.write("\r\n[INFO] Erase of nvram: complete!\r\n");
         }
 
-        // Step 4: Reload
-        updateProgress(progressId, 4, 'Reloading...');
+        // Step 3: Reload
+        updateProgress(progressId, 3, 'Reloading...');
         term.write("\r\n[INFO] Running: reload\r\n");
         globalBuffer = "";
         await sendCmd("reload");
@@ -2110,14 +2139,103 @@
         alert("Router Quick Reset V2 Complete!\\n\\nDevice is rebooting.\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
       }
 
-      async function runSwitchQuickReset(e) {
+      // 5a. Switch Reset (For No Password)
+      async function runSwitchQuickResetNoPass(e) {
         if (e) e.stopPropagation();
-        if (!confirm("Quick Reset Switch? This will ERASE all config + VLAN info!")) return;
+        if (!confirm("Switch Reset (For No Password)?\n\nClick when you see 'Switch>' prompt.\n\nThis will ERASE all config + VLAN info!")) return;
 
-        const progressId = 'progressSwitchQuick';
+        const progressId = 'progressSwitchQuickNoPass';
         showProgress(progressId);
 
-        term.write("\r\n[INFO] Starting Switch Quick Reset...\r\n");
+        term.write("\r\n[INFO] Starting Switch Reset (For No Password)...\r\n");
+
+        // Step 1: Enable
+        updateProgress(progressId, 1, 'Entering privileged mode...');
+        term.write("\r\n[INFO] 1. Sending: en\r\n");
+        globalBuffer = "";
+        await sendCmd("en");
+        
+        // Wait for # prompt
+        const result = await waitForAny(["#"], 30);
+        
+        if (!result) {
+            term.write("\r\n[ERROR] Timeout waiting for prompt.\r\n");
+            errorProgress(progressId, 'Timeout');
+            return;
+        }
+        
+        term.write("\r\n[INFO] Enable mode entered!\r\n");
+
+        // Step 2: Write Erase
+        updateProgress(progressId, 2, 'Running wr er...');
+        term.write("\r\n[INFO] 2. Sending: wr er\r\n");
+        globalBuffer = "";
+        await sendCmd("wr er");
+        
+        // Wait for confirm
+        if (await waitForAny(["confirm", "]", "[confirm]"], 10)) {
+            term.write("\r\n[INFO] 3. Sending Enter to confirm...\r\n");
+            await sendCmd("");
+        }
+        
+        // Wait for "Erase of nvram: complete"
+        term.write("\r\n[INFO] 4. Waiting for 'Erase of nvram: complete'...\r\n");
+        const eraseResult = await waitForAny(["Erase of nvram: complete", "complete"], 60);
+        
+        if (eraseResult) {
+            term.write("\r\n[INFO] Erase of nvram: complete!\r\n");
+        }
+
+        // Step 3: Delete VLAN
+        updateProgress(progressId, 3, 'Deleting VLAN data...');
+        term.write("\r\n[INFO] Sending: delete vlan.dat\r\n");
+        await sendCmd("delete vlan.dat");
+        
+        if (await waitForAny(["Delete", "confirm", "filename"], 3)) {
+          await sendCmd(""); // Confirm filename
+        }
+        if (await waitForAny(["confirm", "delete"], 3)) {
+          await sendCmd(""); // Confirm delete
+        }
+
+        // Wait for prompt
+        if (!(await waitForAny(["#"], 10))) return;
+
+        // Step 4: Reload
+        updateProgress(progressId, 4, 'Reloading...');
+        term.write("\r\n[INFO] Running: reload\r\n");
+        globalBuffer = "";
+        await sendCmd("reload");
+
+        // Handle "System configuration has been modified. Save? [yes/no]:"
+        const reloadResult = await waitForAny(["Save?", "yes/no", "Proceed", "confirm"], 10);
+        
+        if (reloadResult && (reloadResult.match.includes("Save") || reloadResult.match.includes("yes/no"))) {
+            term.write("\r\n[INFO] Declining save, sending 'no'...\r\n");
+            await sendCmd("no");
+            
+            // Wait for Proceed
+            if (await waitForAny(["Proceed", "confirm"], 5)) {
+                await sendCmd("");
+            }
+        } else if (reloadResult && (reloadResult.match.includes("Proceed") || reloadResult.match.includes("confirm"))) {
+            await sendCmd("");
+        }
+
+        completeProgress(progressId);
+        term.write("\r\n[INFO] Switch Reset (For No Password) Complete! Device is rebooting.\r\n");
+        alert("Switch Reset (For No Password) Complete! Device is rebooting.\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
+      }
+
+      // 5b. Switch Reset (For Password)
+      async function runSwitchQuickResetPass(e) {
+        if (e) e.stopPropagation();
+        if (!confirm("Switch Reset (For Password)?\n\nAttemps: cisco, class.\n\nThis will ERASE all config + VLAN info!")) return;
+
+        const progressId = 'progressSwitchQuickPass';
+        showProgress(progressId);
+
+        term.write("\r\n[INFO] Starting Switch Reset (For Password)...\r\n");
 
         // Step 1: Enable
         updateProgress(progressId, 1, 'Entering privileged mode...');
@@ -2164,7 +2282,7 @@
          }
 
         completeProgress(progressId);
-        alert("Switch Quick Reset Complete! Device is rebooting.\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
+        alert("Switch Reset (For Password) Complete! Device is rebooting.\\n\\n(Created by Jaehyeok Lee - Coffee appreciated! ☕️)");
       }
     </script>
   </body>
