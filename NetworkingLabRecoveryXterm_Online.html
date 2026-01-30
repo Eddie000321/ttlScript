@@ -1008,6 +1008,158 @@
         return null;
       }
 
+      // ==========================================
+      // 5.5. PROMPT PATTERN DETECTION HELPERS
+      // ==========================================
+      // Get the last line from the buffer (where prompts typically appear)
+      function getLastLine(buffer) {
+        if (!buffer) return '';
+        const lines = buffer.split('\n');
+        // Return last non-empty line
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const line = lines[i].trim();
+          if (line) return line;
+        }
+        return '';
+      }
+
+      // Check if buffer shows user mode prompt (ending with >)
+      // Matches: Router>, R1>, Core-SW>, S1>, etc.
+      function isUserMode(buffer) {
+        const lastLine = getLastLine(buffer);
+        // Pattern: any non-whitespace characters followed by >
+        return /\S+>\s*$/.test(lastLine);
+      }
+
+      // Check if buffer shows privileged mode prompt (ending with #)
+      // Matches: Router#, R1#, Core-SW#, S1#, etc.
+      function isPrivMode(buffer) {
+        const lastLine = getLastLine(buffer);
+        // Pattern: any non-whitespace characters followed by #
+        // But NOT config mode (which has parentheses)
+        return /\S+#\s*$/.test(lastLine) && !lastLine.includes('(');
+      }
+
+      // Check if buffer shows config mode prompt
+      // Matches: (config)#, (config-line)#, (config-if)#, etc.
+      function isConfigMode(buffer) {
+        const lastLine = getLastLine(buffer);
+        return /\(config[^)]*\)#\s*$/.test(lastLine);
+      }
+
+      // Check if buffer shows any CLI prompt (> or #)
+      function isAnyPrompt(buffer) {
+        return isUserMode(buffer) || isPrivMode(buffer) || isConfigMode(buffer);
+      }
+
+      // Wait for a specific prompt pattern
+      // type: 'user' (>), 'priv' (#), 'config' ((config)#), 'any' (> or #)
+      async function waitForPromptPattern(type, timeoutSec = 30, options = {}) {
+        const typeNames = { user: 'User Mode (>)', priv: 'Privileged Mode (#)', config: 'Config Mode', any: 'Any Prompt (> or #)' };
+        term.write(`\r\n[SCRIPT] Waiting for: ${typeNames[type] || type}...\r\n`);
+
+        const start = Date.now();
+        let lastKeepAlive = Date.now();
+        const keepAliveInterval = options.keepAliveInterval || 2000;
+        const keepAliveCmd = options.keepAliveCmd || "";
+
+        while (Date.now() - start < timeoutSec * 1000) {
+          let found = false;
+
+          switch (type) {
+            case 'user':
+              found = isUserMode(globalBuffer);
+              break;
+            case 'priv':
+              found = isPrivMode(globalBuffer);
+              break;
+            case 'config':
+              found = isConfigMode(globalBuffer);
+              break;
+            case 'any':
+              found = isAnyPrompt(globalBuffer);
+              break;
+          }
+
+          if (found) {
+            const lastLine = getLastLine(globalBuffer);
+            term.write(`\r\n[SCRIPT] Found prompt: "${lastLine}"\r\n`);
+            return true;
+          }
+
+          // Keep-Alive logic
+          if (options.sendKeepAlive && (Date.now() - lastKeepAlive > keepAliveInterval)) {
+            await sendCmd(keepAliveCmd);
+            lastKeepAlive = Date.now();
+          }
+
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        term.write(`\r\n[SCRIPT] Timeout waiting for ${typeNames[type] || type}.\r\n`);
+        return false;
+      }
+
+      // Enhanced waitForAny that supports both exact strings and prompt patterns
+      // Special patterns: ':user_mode:', ':priv_mode:', ':config_mode:', ':any_prompt:'
+      async function waitForAnyEnhanced(patterns, timeoutSec = 30, options = {}) {
+        const patternStr = patterns.map((p) => p.startsWith(':') ? p : `"${p}"`).join(" or ");
+        term.write(`\r\n[SCRIPT] Waiting for: ${patternStr}...\r\n`);
+
+        const start = Date.now();
+        let lastKeepAlive = Date.now();
+        const keepAliveInterval = options.keepAliveInterval || 2000;
+        const keepAliveCmd = options.keepAliveCmd || "";
+
+        while (Date.now() - start < timeoutSec * 1000) {
+          // Check for pattern matches (special prompt patterns)
+          for (let p of patterns) {
+            if (p === ':user_mode:' && isUserMode(globalBuffer)) {
+              const lastLine = getLastLine(globalBuffer);
+              term.write(`\r\n[SCRIPT] Found User Mode: "${lastLine}"\r\n`);
+              return { match: ':user_mode:', prompt: lastLine };
+            }
+            if (p === ':priv_mode:' && isPrivMode(globalBuffer)) {
+              const lastLine = getLastLine(globalBuffer);
+              term.write(`\r\n[SCRIPT] Found Privileged Mode: "${lastLine}"\r\n`);
+              return { match: ':priv_mode:', prompt: lastLine };
+            }
+            if (p === ':config_mode:' && isConfigMode(globalBuffer)) {
+              const lastLine = getLastLine(globalBuffer);
+              term.write(`\r\n[SCRIPT] Found Config Mode: "${lastLine}"\r\n`);
+              return { match: ':config_mode:', prompt: lastLine };
+            }
+            if (p === ':any_prompt:' && isAnyPrompt(globalBuffer)) {
+              const lastLine = getLastLine(globalBuffer);
+              term.write(`\r\n[SCRIPT] Found prompt: "${lastLine}"\r\n`);
+              return { match: ':any_prompt:', prompt: lastLine };
+            }
+          }
+
+          // Check for exact string matches
+          for (let p of patterns) {
+            if (p.startsWith(':')) continue; // Skip special patterns
+            const idx = globalBuffer.indexOf(p);
+            if (idx !== -1) {
+              globalBuffer = globalBuffer.substring(idx + p.length);
+              term.write(`\r\n[SCRIPT] Found: "${p}"\r\n`);
+              return { match: p, index: idx };
+            }
+          }
+
+          // Keep-Alive logic
+          if (options.sendKeepAlive && (Date.now() - lastKeepAlive > keepAliveInterval)) {
+            await sendCmd(keepAliveCmd);
+            lastKeepAlive = Date.now();
+          }
+
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        term.write("\r\n[SCRIPT] Timeout waiting for any pattern.\r\n");
+        return null;
+      }
+
       // --- Smart Boot Helper ---
       async function smartBootWait(timeoutSec = 300) {
          const start = Date.now();
@@ -1296,8 +1448,8 @@
         
         await sendCmd("enable");
 
-        // Wait for either privileged prompt or Password prompt
-        let result = await waitForAny(["Password:", "Router#", "Switch#", "Router>", "Switch>"], 5);
+        // Wait for either privileged prompt or Password prompt (using pattern detection)
+        let result = await waitForAnyEnhanced([":priv_mode:", ":user_mode:", "Password:"], 5);
         
         if (!result) {
             term.write("\r\n[WARN] Timeout waiting for enable prompt.\r\n");
@@ -1305,80 +1457,80 @@
         }
 
         // Case 1: Already in privileged mode
-        if (result.match.includes("Router#") || result.match.includes("Switch#")) {
-             term.write("\r\n[SCRIPT] No password required - already in privileged mode\r\n");
+        if (result.match === ':priv_mode:') {
+             term.write(`\r\n[SCRIPT] No password required - already in privileged mode (${result.prompt})\r\n`);
              return true;
         }
         
         // Case 2: At user prompt (no enable password set, just need enable)
-        if (result.match.includes("Router>") || result.match.includes("Switch>")) {
-             term.write("\r\n[SCRIPT] At user prompt. Enable doesn't need password.\r\n");
+        if (result.match === ':user_mode:') {
+             term.write(`\r\n[SCRIPT] At user prompt (${result.prompt}). Enable doesn't need password.\r\n`);
              return true;
         }
 
         // Case 3: Asked for password (enable secret)
         // Try cisco first, then class
-        if (result && result.match.includes("Password:")) {
+        if (result && result.match === "Password:") {
             // Try 'cisco' for enable password
             term.write("\r\n[SCRIPT] Enable password required. Trying 'cisco'...\r\n");
             globalBuffer = "";
             await sendCmd("cisco");
             
-            result = await waitForAny(["Password:", "Router#", "Switch#", "Router>", "Switch>", "% "], 10);
+            result = await waitForAnyEnhanced([":priv_mode:", ":user_mode:", "Password:", "% "], 10);
             
-            if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                term.write("\r\n[SCRIPT] Enable password 'cisco' worked!\r\n");
+            if (result && result.match === ':priv_mode:') {
+                term.write(`\r\n[SCRIPT] Enable password 'cisco' worked! (${result.prompt})\r\n`);
                 return true;
             }
             
             // cisco failed, try 'class'
-            if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
+            if (result && (result.match === "Password:" || result.match === "% ")) {
                 term.write("\r\n[SCRIPT] Trying 'class' for enable password...\r\n");
                 globalBuffer = "";
                 await sendCmd("class");
                 
-                result = await waitForAny(["Password:", "Router#", "Switch#", "Router>", "Switch>", "% "], 10);
+                result = await waitForAnyEnhanced([":priv_mode:", ":user_mode:", "Password:", "% "], 10);
                 
-                if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                    term.write("\r\n[SCRIPT] Enable password 'class' worked!\r\n");
+                if (result && result.match === ':priv_mode:') {
+                    term.write(`\r\n[SCRIPT] Enable password 'class' worked! (${result.prompt})\r\n`);
                     return true;
                 }
             }
             
             // Got Router> after password - this was console login password, now need enable
-            if (result && (result.match.includes("Router>") || result.match.includes("Switch>"))) {
-                term.write("\r\n[SCRIPT] Console password worked! Now trying enable...\r\n");
+            if (result && result.match === ':user_mode:') {
+                term.write(`\r\n[SCRIPT] Console password worked! At ${result.prompt}. Now trying enable...\r\n`);
                 globalBuffer = "";
                 await sendCmd("enable");
                 
-                result = await waitForAny(["Password:", "Router#", "Switch#"], 5);
+                result = await waitForAnyEnhanced([":priv_mode:", "Password:"], 5);
                 
-                if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                    term.write("\r\n[SCRIPT] Enable succeeded!\r\n");
+                if (result && result.match === ':priv_mode:') {
+                    term.write(`\r\n[SCRIPT] Enable succeeded! (${result.prompt})\r\n`);
                     return true;
                 }
                 
                 // Enable needs password too
-                if (result && result.match.includes("Password:")) {
+                if (result && result.match === "Password:") {
                     term.write("\r\n[SCRIPT] Enable password required. Trying 'class'...\r\n");
                     globalBuffer = "";
                     await sendCmd("class");
                     
-                    result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
-                    if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                        term.write("\r\n[SCRIPT] Enable password 'class' worked!\r\n");
+                    result = await waitForAnyEnhanced([":priv_mode:", "Password:", "% "], 5);
+                    if (result && result.match === ':priv_mode:') {
+                        term.write(`\r\n[SCRIPT] Enable password 'class' worked! (${result.prompt})\r\n`);
                         return true;
                     }
                     
                     // class failed for enable, try cisco
-                    if (result && (result.match.includes("Password:") || result.match.includes("% "))) {
+                    if (result && (result.match === "Password:" || result.match === "% ")) {
                         term.write("\r\n[SCRIPT] Trying 'cisco' for enable password...\r\n");
                         globalBuffer = "";
                         await sendCmd("cisco");
                         
-                        result = await waitForAny(["Password:", "Router#", "Switch#", "% "], 5);
-                        if (result && (result.match.includes("Router#") || result.match.includes("Switch#"))) {
-                            term.write("\r\n[SCRIPT] Enable password 'cisco' worked!\r\n");
+                        result = await waitForAnyEnhanced([":priv_mode:", "Password:", "% "], 5);
+                        if (result && result.match === ':priv_mode:') {
+                            term.write(`\r\n[SCRIPT] Enable password 'cisco' worked! (${result.prompt})\r\n`);
                             return true;
                         }
                     }
@@ -1411,8 +1563,8 @@
           await sendCmd("");
         }
 
-        // Wait for prompt return
-        if (!(await waitForAny(["Router#", "Switch#"], 20))) return;
+        // Wait for prompt return (using pattern detection for any hostname)
+        if (!(await waitForPromptPattern('priv', 20))) return;
 
         // Step 3: Reload
         updateProgress(progressId, 3, 'Reloading...');
@@ -1455,8 +1607,8 @@
           await sendCmd("");
         }
 
-        // Wait for prompt
-        if (!(await waitForAny(["#"], 10))) return;
+        // Wait for prompt (using pattern detection for any hostname)
+        if (!(await waitForPromptPattern('priv', 10))) return;
 
         // Step 3: Delete VLAN
         updateProgress(progressId, 3, 'Deleting VLAN data...');
@@ -1468,8 +1620,8 @@
           await sendCmd(""); // Confirm delete
         }
 
-        // Wait for prompt
-        if (!(await waitForAny(["#"], 10))) return;
+        // Wait for prompt (using pattern detection for any hostname)
+        if (!(await waitForPromptPattern('priv', 10))) return;
 
         // Step 4: Reload
         updateProgress(progressId, 4, 'Reloading...');

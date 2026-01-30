@@ -5,7 +5,7 @@ A single-file web application for automating Cisco device recovery and reset pro
 ![Browser Support](https://img.shields.io/badge/Browser-Chrome%20%7C%20Edge-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-> **🚀 Quick Start**: Download the [offline version](NetworkingLabRecoveryXterm_Offline.html), open it in **Chrome** or **Edge**, and you're ready to go! (No internet required)
+> **🚀 Quick Start**: Download the [**recommended version**](NetworkingLabRecoveryXterm_Recommended.html), open it in **Chrome** or **Edge**, and you're ready to go! (No internet required)
 
 > 📖 **See [FLOW.md](FLOW.md) for detailed step-by-step button flow examples.**
 <img width="1352" height="915" alt="Screenshot 2026-01-26 at 2 51 16 PM" src="https://github.com/user-attachments/assets/a4c7ec22-3efe-460c-914d-70be15d24865" />
@@ -45,8 +45,9 @@ For locked-out devices requiring physical intervention.
 
 | File | Description | Internet Required |
 |------|-------------|:-----------------:|
-| `NetworkingLabRecoveryXterm.html` | Online version (CDN) | ✅ Yes |
-| `NetworkingLabRecoveryXterm_Offline.html` | Offline version (embedded libs) | ❌ No |
+| `NetworkingLabRecoveryXterm_Recommended.html` | **⭐ Recommended** - Standalone version with local libs | ❌ No |
+| `NetworkingLabRecoveryXterm_Online.html` | Online version (uses CDN for libraries) | ✅ Yes |
+| `lib/xterm.min.js` | Xterm.js library (minified) | ❌ No |
 
 ## Requirements
 
@@ -82,7 +83,8 @@ During Quick Reset procedures, visual progress is shown:
 - **Terminal Emulation**: Xterm.js 5.3.0
 - **API**: Web Serial API
 - **Single File**: All HTML, CSS, and JavaScript in one file
-- **Offline Version**: ~325KB (includes embedded Xterm.js)
+- **Recommended Version**: ~71KB (xterm.js library split to `lib/` directory)
+- **Custom Hostname Support**: Pattern-based prompt detection works with any device hostname (e.g., `R1>`, `Core-SW#`, `Router>`, etc.)
 
 ## 🚀 Efficiency & Performance
 
