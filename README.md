@@ -62,6 +62,84 @@ For locked-out devices requiring physical intervention.
 3. Use **Auto-Enter** to verify device connectivity
 4. Select the appropriate procedure for your device
 
+## Button Logic (Run-Time Flow)
+
+모든 버튼은 기본적으로 **Web Serial 연결 후에만 활성화**되며, 연결 성공 시 `enableControls(true)`에 의해 사용 가능해집니다.
+
+- 공통 동작
+  - 각 버튼은 HTML의 `onclick`에서 해당 JavaScript 함수로 바로 연결됩니다.
+  - 버튼 실행 시 동작은 `sendCmd()`를 통해 명령 전송(RT with `\\r`) 후 `globalBuffer`에 누적된 출력으로 프롬프트/문구를 감지합니다.
+  - 핵심 대기 유틸리티는 `waitForAny()` (`pattern`, `timeout`, 필요시 keep-alive), 필요 시 `wait()`/`smartBootWait()`를 사용합니다.
+  - Quick Reset류 진행 바는 `showProgress / updateProgress / completeProgress / errorProgress`를 통해 표시됩니다.
+
+### Utility
+
+- `btnTestConnection` (`toggleAutoEnter`)
+  - 500ms 간격으로 빈 Enter(`""`)를 반복 전송해 단말 응답 유무를 점검합니다.
+  - 버튼을 다시 누르면 중단됩니다.
+
+### Quick Reset
+
+- `btnRouterQuick` (Router Reset for Password) → `runRouterQuickReset()`
+  1. 사용자 확인 후 콘솔 비밀번호 4개 조합(`cisco/class`, `class/cisco`, `cisco/cisco`, `class/class`)을 순차 시도
+  2. 1차 비밀번호만으로 로그인되는 경우 / 2차까지 필요한 경우를 분기
+  3. 패스워드 실패 시 `Bad password` 회복 루틴 수행 후 다음 조합 진행
+  4. 로그인 후 필요 시 `enable` + enable password(`cisco`/`class`) 시도
+  5. `write erase` → 확인 프롬프트 대응 → `reload`
+  6. `Save? / yes/no / Proceed` 처리 후 완료 처리
+
+- `btnRouterQuickV2` (Router Reset for No Password) → `runRouterQuickResetV2()`
+  1. `en` 후 `>` 또는 `#` 프롬프트 확인
+  2. `wr er` + 확인 응답 처리
+  3. `Erase of nvram: complete` 대기
+  4. `reload` 및 save/proceed 처리
+
+- `btnSwitchQuickPass` (Switch Reset for Password) → `runSwitchQuickResetPass()`
+  1. Router Password flow와 동일한 4조합 로그인 시도
+  2. `#` 진입 후 `write erase`
+  3. `delete vlan.dat` 확인 처리
+  4. `reload` 및 save/proceed 처리
+
+- `btnSwitchQuickNoPass` (Switch Reset for No Password) → `runSwitchQuickResetNoPass()`
+  1. `en` → `#`
+  2. `wr er` + 확인
+  3. `delete vlan.dat` + 확인
+  4. `reload` 및 save/proceed 처리
+
+### Password Recovery / Factory Reset
+
+- `btnRouter` (Router Recovery - Auto) → `runRouterRecoveryAuto()`
+  1. `reload` 실행
+  2. save/proceed 관련 프롬프트 처리
+  3. 60초 동안 `BREAK`를 반복 전송해 `rommon 1 >` 대기
+  4. 진입 시 `runRouterRecoverySteps()` 공통 함수 실행:
+     - `confreg 0x2142` → `rommon 2 >` 대기 → `reset`
+     - 부팅 대기(110초 블라인드) 후 `initial configuration dialog` 감지 시 `no`
+     - `enable` → `conf t` → `config-register 0x2102` → `end`
+     - `write erase` → `reload` + save/confirm 처리
+
+- `btnRouterManual` (Router Recovery - Manual) → `runRouterRecoveryManual()`
+  - Auto와 동일한 복구 스텝을 사용하지만, 사용자가 전원 재시작한 뒤 BREAK 송신을 120초 대기
+
+- `btnSwitch` (Switch Factory Reset) → `runSwitchReset()`
+  1. `switch:` 대기
+  2. `flash:vlan.dat`, `flash:config.text`, `flash:private-config.text` 삭제
+  3. `reset` 실행 후 확인 응답
+
+- `btn9200Boot` (9200 Recovery - Phase 1) → `run9200Boot()`
+  1. `SWITCH_IGNORE_STARTUP_CFG=1` 설정
+  2. `boot` 실행 후 Phase 2(`btn9200Reset`) 안내
+
+- `btn9200Reset` (9200 Recovery - Phase 2) → `run9200Reset()`
+  1. `enable` → `Switch#` 확인
+  2. `write erase` → `write memory`
+  3. `conf t` → `no system ignore startupconfig switch all`
+  4. `exit` → `reload` + save/proceed 처리
+
+## Runtime Notes
+
+- `smartBootWait()`는 부팅 대기용으로 긴 로그/재시작 상황에서 `Router>`/`Switch>`/`rommon` 진입을 처리하기 위한 헬퍼이며, 현재 버튼 핸들러에서 직접 호출되지는 않습니다.
+
 ## Device Color Indicators
 
 | Icon | Device Type |

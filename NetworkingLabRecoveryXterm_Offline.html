@@ -630,6 +630,30 @@
         font-weight: 600;
       }
 
+      .app-footer {
+        background: rgba(30, 41, 59, 0.75);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid var(--border-color);
+        padding: 8px 14px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.72rem;
+        line-height: 1.35;
+      }
+
+      .app-footer p {
+        margin: 0;
+      }
+
+      .app-footer .footer-main {
+        margin-bottom: 2px;
+      }
+
+      .app-footer .footer-meta {
+        font-size: 0.68rem;
+        opacity: 0.9;
+      }
+
       @keyframes pulse {
         0%,
         100% {
@@ -16842,7 +16866,6 @@
                   "
                 ></span>
                 <span>Router Recovery (Auto)</span>
-                <span class="tag">ISR / ASR</span>
               </div>
             </div>
             <div class="card-body">
@@ -16927,7 +16950,6 @@
                   "
                 ></span>
                 <span>Switch Factory Reset</span>
-                <span class="tag">2960 / 3560 / 3750</span>
               </div>
             </div>
             <div class="card-body">
@@ -16973,7 +16995,6 @@
                   "
                 ></span>
                 <span>9200 Recovery - Phase 1 (Boot)</span>
-                <span class="tag">Catalyst 9200/9300</span>
               </div>
             </div>
             <div class="card-body">
@@ -17054,29 +17075,17 @@
     </main>
 
     <footer
-      style="
-        background: rgba(30, 41, 59, 0.8);
-        backdrop-filter: blur(12px);
-        border-top: 1px solid var(--border-color);
-        padding: 12px 24px;
-        text-align: center;
-        color: #94a3b8;
-        font-size: 0.8rem;
-      "
+      class="app-footer"
     >
-      <p style="margin-bottom: 6px">
-        xterm.js has been converted to Python and included in this offline
-        version.<br />
-        For parts using xterm.js, we adhere to its license terms.<br />
-        This is a personal test version, not intended for commercial use.
+      <p class="footer-main">
+        This offline version includes xterm.js for terminal support and follows
+        its license terms.
       </p>
-      <p style="margin: 0">
-        Created by
-        <strong style="color: var(--primary-color)">Jaehyeok Lee</strong><br />
-        <span style="font-size: 0.9em; opacity: 0.8"
-          >Special thanks to <strong>Leo Laurencio</strong>,
-          <strong>Nhat Quang Nguyen</strong> for their advice.</span
-        >
+      <p class="footer-meta">
+        Personal test version only • Not for commercial use<br />
+        Created by <strong style="color: var(--primary-color)">Jaehyeok Lee</strong> •
+        Thanks to <strong>Leo Laurencio</strong> and
+        <strong>Nhat Quang Nguyen</strong>
       </p>
     </footer>
 
