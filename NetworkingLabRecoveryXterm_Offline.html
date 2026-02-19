@@ -288,6 +288,7 @@
         background-color: var(--bg-color);
         color: var(--text-main);
         height: 100vh;
+        min-height: 100vh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -296,6 +297,7 @@
       /* Header */
       header {
         height: 60px;
+        min-height: 60px;
         background: rgba(30, 41, 59, 0.8);
         backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--border-color);
@@ -304,6 +306,12 @@
         justify-content: space-between;
         padding: 0 24px;
         z-index: 10;
+      }
+
+      .header-tools {
+        display: flex;
+        align-items: center;
+        gap: 12px;
       }
 
       .brand {
@@ -369,6 +377,7 @@
       /* Main Layout */
       main {
         flex: 1;
+        min-height: 0;
         display: flex;
         overflow: hidden;
       }
@@ -382,6 +391,7 @@
         min-width: 400px;
         padding: 10px;
         overflow: hidden; /* xterm handles scroll */
+        min-height: 0;
       }
 
       #terminal {
@@ -414,6 +424,7 @@
         flex-direction: column;
         min-width: 280px;
         max-width: 400px;
+        min-height: 0;
       }
 
       .control-header {
@@ -433,6 +444,7 @@
 
       .recovery-cards {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
         padding: 12px;
         display: flex;
@@ -491,9 +503,10 @@
       }
 
       .card.active .card-body {
-        max-height: 800px;
+        max-height: min(800px, 72vh);
         padding-bottom: 16px;
         opacity: 1;
+        overflow-y: auto;
         transition: all 0.3s ease-in;
       }
 
@@ -626,6 +639,60 @@
         50% {
           opacity: 0.6;
           transform: scale(1.2);
+        }
+      }
+
+      @media (max-width: 1100px) {
+        header {
+          padding: 0 12px;
+        }
+
+        main {
+          flex-direction: column;
+        }
+
+        .terminal-pane {
+          flex: 0 0 clamp(220px, 42vh, 460px);
+          max-height: clamp(220px, 42vh, 460px);
+          border-right: none;
+          border-bottom: 1px solid var(--border-color);
+        }
+
+        .control-pane {
+          flex: 1 1 auto;
+          max-width: none;
+          min-width: 0;
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 640px) {
+        header {
+          flex-wrap: wrap;
+          row-gap: 8px;
+          height: auto;
+          min-height: 60px;
+        }
+
+        .header-tools {
+          width: 100%;
+          justify-content: space-between;
+          flex-wrap: wrap;
+        }
+
+        .connection-status {
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .terminal-pane {
+          flex-basis: clamp(180px, 36vh, 340px);
+          max-height: clamp(180px, 36vh, 340px);
+        }
+
+        .recovery-cards {
+          padding: 10px;
+          gap: 8px;
         }
       }
     </style>
@@ -16417,7 +16484,7 @@
         <div class="brand-icon"></div>
         <span>Networking Lab Assistant (Offline)</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 12px">
+      <div class="header-tools" style="display: flex; align-items: center; gap: 12px">
         <button
           id="btnTheme"
           onclick="toggleTheme()"

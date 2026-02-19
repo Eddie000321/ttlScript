@@ -5,9 +5,9 @@ A single-file web application for automating Cisco device recovery and reset pro
 ![Browser Support](https://img.shields.io/badge/Browser-Chrome%20%7C%20Edge-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-> **🚀 Quick Start**: Download the [**recommended version**](NetworkingLabRecoveryXterm_Recommended.html), open it in **Chrome** or **Edge**, and you're ready to go! (No internet required)
+> **🚀 Quick Start**: Open `NetworkingLabRecoveryXterm_Offline.html` in **Chrome** or **Edge**, and you're ready to go! (No internet required)
 
-> 📖 **See [FLOW.md](FLOW.md) for detailed step-by-step button flow examples.**
+> 📖 **Docs**: See [FLOW.md](FLOW.md) for step-by-step button flows and [docs/button_flows.md](docs/button_flows.md) for trigger conditions and detailed logic.
 <img width="1352" height="915" alt="Screenshot 2026-01-26 at 2 51 16 PM" src="https://github.com/user-attachments/assets/a4c7ec22-3efe-460c-914d-70be15d24865" />
 
 
@@ -22,32 +22,32 @@ A single-file web application for automating Cisco device recovery and reset pro
 #### Router Reset
 | Variant | When to Use | Steps |
 |---------|-------------|-------|
-| **for Password:** | Click when you see "Password:" prompt | `enable` → `write erase` → `reload` |
-| **for No Password** | Click when you see "Router>" prompt | `en` → `wr er` → `reload` |
+| **for Password:** | Click when you see `Password:` prompt | Try `cisco/class` pairs → `enable` → `write erase` → `reload` (decline save) |
+| **for No Password** | Click when you see `Router>` prompt | `en` → `wr er` → `reload` |
 
 #### Switch Reset
 | Variant | When to Use | Steps |
 |---------|-------------|-------|
-| **for Password:** | Click when you see "Password:" prompt | `enable` → `write erase` → `delete vlan.dat` → `reload` |
-| **for No Password** | Click when you see "Switch>" prompt | `en` → `wr er` → `delete vlan.dat` → `reload` |
+| **for Password:** | Click when you see `Password:` prompt | Try `cisco/class` pairs → `enable` → `write erase` → `delete vlan.dat` → `reload` (decline save) |
+| **for No Password** | Click when you see `Switch>` prompt | `en` → `wr er` → `delete vlan.dat` → `reload` |
 
 ### ⚠ Password Recovery / Factory Reset (Password Unknown)
 For locked-out devices requiring physical intervention.
 
 | Device | Mode Entry | Key Steps |
 |--------|------------|--------------|
-| **Router (Auto)** | Script sends Break → ROMMON | `confreg 0x2142` → `reset` → `write erase` → `config-register 0x2102` |
-| **Router (Manual)** | Power cycle + Break signals | User turns OFF/ON, script sends Break until ROMMON |
-| **Switch (2960/3560/3750)** | MODE button + power | `flash_init` → delete config files → `reset` |
-| **Catalyst 9200/9300** | MODE button + power | Phase 1: `SWITCH_IGNORE_STARTUP_CFG=1` → `boot`<br>Phase 2: `write erase` → `no system ignore...` → `reload` |
+| **Router (Auto)** | Script sends Break → ROMMON | `confreg 0x2142` → `reset` → boot → `config-register 0x2102` → `write erase` → `reload` |
+| **Router (Manual)** | Power cycle + Break signals | User turns OFF/ON, script sends Break until ROMMON, then same steps as Auto |
+| **Switch (2960/3560/3750)** | MODE button + power | Delete `flash:vlan.dat`, `flash:config.text`, `flash:private-config.text` → `reset` |
+| **Catalyst 9200/9300** | MODE button + power | Phase 1: `SWITCH_IGNORE_STARTUP_CFG=1` → `boot`<br>Phase 2: `enable` → `write erase` → `write memory` → `no system ignore startupconfig switch all` → `reload` |
 
 ## Files
 
 | File | Description | Internet Required |
 |------|-------------|:-----------------:|
-| `NetworkingLabRecoveryXterm_Recommended.html` | **⭐ Recommended** - Standalone version with local libs | ❌ No |
-| `NetworkingLabRecoveryXterm_Online.html` | Online version (uses CDN for libraries) | ✅ Yes |
-| `lib/xterm.min.js` | Xterm.js library (minified) | ❌ No |
+| `NetworkingLabRecoveryXterm_Offline.html` | Standalone offline app (includes Xterm.js) | ❌ No |
+| `FLOW.md` | Button flow examples | ❌ No |
+| `docs/button_flows.md` | Trigger conditions + detailed logic | ❌ No |
 
 ## Requirements
 
@@ -83,7 +83,7 @@ During Quick Reset procedures, visual progress is shown:
 - **Terminal Emulation**: Xterm.js 5.3.0
 - **API**: Web Serial API
 - **Single File**: All HTML, CSS, and JavaScript in one file
-- **Recommended Version**: ~71KB (xterm.js library split to `lib/` directory)
+- **Offline File Size**: ~775 KB (`NetworkingLabRecoveryXterm_Offline.html`)
 - **Custom Hostname Support**: Pattern-based prompt detection works with any device hostname (e.g., `R1>`, `Core-SW#`, `Router>`, etc.)
 
 ## 🚀 Efficiency & Performance
