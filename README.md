@@ -17,7 +17,7 @@ A single-file web application for automating Cisco device recovery and reset pro
 - **Auto-Enter**: Sends Enter key every 500ms to test device connectivity
 - **Dark/Light Mode**: Toggle theme with 🌙/☀️ button (preference saved to localStorage)
 
-### ✓ Quick Reset
+### ✓ 퀵리셋
 
 #### Router Reset
 | Variant | When to Use | Steps |
@@ -31,7 +31,7 @@ A single-file web application for automating Cisco device recovery and reset pro
 | **for Password:** | Click when you see `Password:` prompt | Try `cisco/class` pairs → `enable` → `write erase` → `delete vlan.dat` → `reload` (decline save) |
 | **for No Password** | Click when you see `Switch>` prompt | `en` → `wr er` → `delete vlan.dat` → `reload` |
 
-### ⚠ Password Recovery / Factory Reset (Password Unknown)
+### ⚠ 비밀번호 미확인 팩토리리셋
 For locked-out devices requiring physical intervention.
 
 | Device | Mode Entry | Key Steps |
@@ -70,7 +70,7 @@ For locked-out devices requiring physical intervention.
   - 각 버튼은 HTML의 `onclick`에서 해당 JavaScript 함수로 바로 연결됩니다.
   - 버튼 실행 시 동작은 `sendCmd()`를 통해 명령 전송(RT with `\\r`) 후 `globalBuffer`에 누적된 출력으로 프롬프트/문구를 감지합니다.
   - 핵심 대기 유틸리티는 `waitForAny()` (`pattern`, `timeout`, 필요시 keep-alive), 필요 시 `wait()`/`smartBootWait()`를 사용합니다.
-  - Quick Reset류 진행 바는 `showProgress / updateProgress / completeProgress / errorProgress`를 통해 표시됩니다.
+- 퀵리셋/팩토리리셋 진행 바는 `showProgress / updateProgress / completeProgress / errorProgress`로 표시됩니다.
 
 ### Utility
 
@@ -78,7 +78,7 @@ For locked-out devices requiring physical intervention.
   - 500ms 간격으로 빈 Enter(`""`)를 반복 전송해 단말 응답 유무를 점검합니다.
   - 버튼을 다시 누르면 중단됩니다.
 
-### Quick Reset
+### 퀵리셋
 
 - `btnRouterQuick` (Router Reset for Password) → `runRouterQuickReset()`
   1. 사용자 확인 후 콘솔 비밀번호 4개 조합(`cisco/class`, `class/cisco`, `cisco/cisco`, `class/class`)을 순차 시도
@@ -106,7 +106,7 @@ For locked-out devices requiring physical intervention.
   3. `delete vlan.dat` + 확인
   4. `reload` 및 save/proceed 처리
 
-### Password Recovery / Factory Reset
+### 팩토리리셋
 
 - `btnRouter` (Router Recovery - Auto) → `runRouterRecoveryAuto()`
   1. `reload` 실행
@@ -150,11 +150,11 @@ For locked-out devices requiring physical intervention.
 
 ## Progress Indicators
 
-During Quick Reset procedures, visual progress is shown:
+Progress indicator meaning:
 
-- 🔵 **Blue (pulsing)**: Current step executing
-- 🟢 **Green**: Step completed
-- 🔴 **Red**: Step failed - Retry!
+- 현재 단계
+- 완료
+- 실패 (재시도)
 
 ## Technical Details
 

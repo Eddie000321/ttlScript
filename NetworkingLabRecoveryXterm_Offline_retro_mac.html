@@ -687,6 +687,275 @@
         opacity: 0.9;
       }
 
+      .retro-mac {
+        --bg-color: #f5f5f7;
+        --surface-color: rgba(255, 255, 255, 0.96);
+        --surface-hover: #ffffff;
+        --primary-color: #0a84ff;
+        --primary-hover: #0063cd;
+        --accent-color: #ff9f0a;
+        --text-main: #1d1d1f;
+        --text-muted: #6e6e73;
+        --border-color: #d2d2d7;
+        --shadow-elevation:
+          0 2px 4px rgb(0 0 0 / 0.05),
+          0 14px 30px rgb(0 0 0 / 0.08);
+        --terminal-bg: #050505;
+        --terminal-frame: #ffffff;
+        --terminal-overlay: rgb(16 16 16 / 0.9);
+        --mac-glass: rgb(255 255 255 / 0.72);
+      }
+
+      [data-theme="light"] .retro-mac,
+      .retro-mac {
+        --shadow-elevation:
+          0 2px 4px rgb(0 0 0 / 0.05),
+          0 14px 30px rgb(0 0 0 / 0.09);
+      }
+
+      body.retro-mac {
+        color: var(--text-main);
+        background:
+          radial-gradient(1300px 760px at 12% -14%, rgb(255 255 255 / 0.95), transparent 62%),
+          radial-gradient(900px 540px at 88% -6%, rgb(255 255 255 / 0.42), transparent 64%),
+          linear-gradient(180deg, #f5f5f7 0%, #efeff1 100%);
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", sans-serif;
+      }
+
+      .retro-mac header {
+        position: relative;
+        height: 58px;
+        min-height: 58px;
+        padding: 0 18px;
+        border-bottom: 1px solid #e0e0e5;
+        background: linear-gradient(to bottom, rgb(251 251 253 / 0.92), rgb(242 242 246 / 0.88));
+        backdrop-filter: blur(18px);
+        box-shadow: inset 0 1px 0 #fff;
+      }
+
+      .retro-mac .retro-window-lights {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      .retro-mac .retro-window-lights::before,
+      .retro-mac .retro-window-lights::after,
+      .retro-mac .retro-window-lights .retro-green-dot {
+        content: "";
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        border: 0.5px solid rgba(0, 0, 0, 0.2);
+        box-shadow: inset -1px -1px 0 rgb(255 255 255 / 0.25), 0 1px 0 rgb(255 255 255 / 0.35);
+      }
+
+      .retro-mac .retro-window-lights::before {
+        background: #ff5f57;
+      }
+
+      .retro-mac .retro-window-lights::after {
+        background: #ffbd2e;
+      }
+
+      .retro-mac .retro-window-lights .retro-green-dot {
+        background: #28c840;
+      }
+
+      .retro-mac .brand {
+        margin-left: 60px;
+        font-size: 0.95rem;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+      }
+
+      .retro-mac .brand-icon {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1px solid #b3b3b8;
+        background: linear-gradient(135deg, #2f2f38, #0f0f14);
+      }
+
+      .retro-mac .header-tools {
+        gap: 10px;
+      }
+
+      .retro-mac .connection-status,
+      .retro-mac .font-size-control {
+        background: var(--mac-glass);
+        border: 1px solid #d8d8de;
+        border-radius: 12px;
+        padding: 6px 10px;
+        box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9);
+      }
+
+      .retro-mac .btn-connect,
+      .retro-mac .btn-run,
+      .retro-mac #btnTheme,
+      .retro-mac .font-size-control button {
+        color: #1d1d1f !important;
+        background: linear-gradient(to bottom, #ffffff, #e7e8ed);
+        border: 1px solid #c6c6d0;
+        border-radius: 8px;
+        box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.95), 0 1px 0 rgb(255 255 255 / 0.45);
+      }
+
+      .retro-mac #btnTheme {
+        min-width: 34px;
+        padding-inline: 9px;
+        line-height: 1;
+      }
+
+      .retro-mac .btn-connect,
+      .retro-mac .font-size-control button {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .retro-mac .connection-status {
+        flex-wrap: nowrap;
+      }
+
+      .retro-mac .btn-connect:hover,
+      .retro-mac .btn-run:hover,
+      .retro-mac #btnTheme:hover,
+      .retro-mac .font-size-control button:hover {
+        background: linear-gradient(to bottom, #fbfcff, #dde0e7);
+      }
+
+      .retro-mac .btn-connect:active,
+      .retro-mac .btn-run:active,
+      .retro-mac #btnTheme:active,
+      .retro-mac .font-size-control button:active {
+        box-shadow: inset 0 2px 6px rgb(0 0 0 / 0.12);
+      }
+
+      .retro-mac .btn-run {
+        font-size: 0.84rem;
+        border-radius: 10px;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #4ba2ff 0%, #0a84ff 100%);
+        border-color: #0063cb;
+        box-shadow: 0 10px 18px rgb(10 132 255 / 0.18);
+        color: #fff !important;
+      }
+
+      .retro-mac .btn-run:hover {
+        background: linear-gradient(135deg, #5bacff 0%, #007aff 100%);
+        box-shadow: 0 12px 22px rgb(10 132 255 / 0.24);
+      }
+
+      .retro-mac .terminal-pane {
+        min-width: min(380px, 45vw);
+        background:
+          linear-gradient(180deg, rgb(255 255 255 / 0.05) 0%, rgb(0 0 0 / 0.2) 100%),
+          var(--terminal-bg);
+        border-right: 1px solid #d2d2d7;
+        padding: 8px;
+      }
+
+      .retro-mac #terminal,
+      .retro-mac .xterm-viewport,
+      .retro-mac .xterm-screen {
+        background: var(--terminal-bg);
+        border: 1px solid #232329;
+      }
+
+      .retro-mac .xterm .xterm-screen,
+      .retro-mac .xterm .xterm-screen canvas {
+        font-family: "SF Mono", "SFMono-Regular", Menlo, Monaco, "Cascadia Code", Consolas, "Courier New", Courier, monospace;
+        text-rendering: geometricPrecision;
+      }
+
+      .retro-mac #term-overlay {
+        font-size: 0.85rem;
+        border: 1px solid #2a2a2f;
+        background: var(--terminal-overlay);
+        color: #dadada;
+      }
+
+      .retro-mac .control-pane {
+        min-width: 0;
+        width: clamp(280px, 34vw, 420px);
+        max-width: 430px;
+        background: linear-gradient(
+          to bottom,
+          rgb(255 255 255 / 0.82),
+          rgb(248 248 250 / 0.96)
+        );
+      }
+
+      .retro-mac .control-header {
+        border-color: #e1e1e7;
+      }
+
+      .retro-mac .recovery-cards {
+        background: transparent;
+        padding-top: 12px;
+      }
+
+      .retro-mac .card,
+      .retro-mac .card-header,
+      .retro-mac .card-body {
+        border-color: #d9d9df;
+        background: var(--surface-color);
+      }
+
+      .retro-mac .card {
+        border-radius: 14px;
+        overflow: visible;
+      }
+
+      .retro-mac .card.active {
+        overflow: visible;
+      }
+
+      .retro-mac .card-body {
+        padding: 0 16px;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+      }
+
+      .retro-mac .card.active .card-body {
+        max-height: none;
+        padding-bottom: 16px;
+        opacity: 1;
+        overflow: visible;
+      }
+
+      .retro-mac .card-header {
+        padding-top: 12px;
+        padding-bottom: 12px;
+        background: linear-gradient(to bottom, #fefefe, #f0f1f5);
+      }
+
+      .retro-mac .control-header h2,
+      .retro-mac .card-title {
+        text-shadow: none;
+      }
+
+      .retro-mac .app-footer {
+        border-top: 1px solid #d9d9df;
+        background: linear-gradient(to bottom, #f5f5f8, #ebecee);
+        color: #46464e;
+      }
+
+      .retro-mac .app-footer p {
+        max-width: 100%;
+        word-break: keep-all;
+      }
+
       @keyframes pulse {
         0%,
         100% {
@@ -756,6 +1025,64 @@
         .recovery-cards {
           padding: 10px;
           gap: 8px;
+        }
+
+        .retro-mac header {
+          padding-right: 10px;
+          padding-left: 10px;
+          gap: 6px;
+        }
+
+        .retro-mac .header-tools {
+          width: 100%;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          row-gap: 8px;
+        }
+
+        .retro-mac .font-size-control {
+          width: calc(100% - 10px);
+          min-width: 0;
+          justify-content: space-between;
+          padding: 4px 6px;
+        }
+
+        .retro-mac .font-size-control input[type="range"] {
+          width: min(140px, 34vw);
+        }
+
+        .retro-mac .connection-status {
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          width: auto;
+        }
+
+        .retro-mac .brand {
+          max-width: calc(100% - 36px);
+        }
+
+        .retro-mac .brand span {
+          display: block;
+          font-size: 0.78rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .retro-mac .terminal-pane {
+          min-width: 0;
+          flex-basis: clamp(140px, 34vh, 290px);
+          max-height: clamp(140px, 34vh, 290px);
+          padding: 8px;
+        }
+
+        .retro-mac .control-pane {
+          width: 100%;
+          min-width: 0;
+        }
+
+        .retro-mac .recovery-cards {
+          padding: 8px;
         }
       }
     </style>
@@ -16540,27 +16867,18 @@
       //# sourceMappingURL=xterm-addon-fit.js.map
     </script>
   </head>
-  <body>
+  <body class="retro-mac">
     <!-- Header -->
       <header>
       <div class="brand">
         <div class="brand-icon"></div>
         <span>Networking Lab Assistant (Offline)</span>
       </div>
-      <div class="header-tools" style="display: flex; align-items: center; gap: 12px">
-        <button
-          id="btnTheme"
-          onclick="toggleTheme()"
-          style="
-            background: transparent;
-            border: 1px solid var(--border-color);
-            padding: 6px 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-          "
-          title="Toggle Dark/Light Mode"
-        >
+      <div class="retro-window-lights" aria-hidden="true">
+        <span class="retro-green-dot"></span>
+      </div>
+      <div class="header-tools">
+        <button id="btnTheme" class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
           🌙
         </button>
         <div class="font-size-control" title="터미널 글씨 크기 조절">
