@@ -7,6 +7,30 @@ This document describes the **Trigger Conditions** (when to use) and **Execution
 ## 1. Quick Reset Buttons
 > **Use these when the device is fully booted and showing a prompt.**
 
+### 1-EXP-A. Router Auto Reset (Experimental)
+- **Trigger Condition:** Click when the router is running and the console is connected, even if the current prompt is not clear yet.
+- **Use Case:** Let the app send Enter, detect the router state, and choose the matching quick reset flow.
+- **Logic:**
+  1. Sends Enter every 500 ms for up to 30 seconds until `Password:`, `>`, or `#` is detected.
+  2. If `Password:` is detected, runs **Router Reset for Password**.
+  3. If `(config...)#` is detected, sends `end`, then starts a fresh 30-second prompt detection window.
+  4. If plain `#` is detected, sends `disable`, then starts a fresh 30-second prompt detection window.
+  5. If a user prompt ending in `>` is detected, sends `en` to test enable access.
+  6. If `enable` asks for `Password:`, routes to **Router Reset for Password**.
+  7. If privileged prompt `#` is reached, runs **Router Reset for No Password**.
+
+### 1-EXP-B. Switch Auto Reset (Experimental)
+- **Trigger Condition:** Click when the switch is running and the console is connected, even if the current prompt is not clear yet.
+- **Use Case:** Let the app send Enter, detect the switch state, and choose the matching quick reset flow.
+- **Logic:**
+  1. Sends Enter every 500 ms for up to 30 seconds until `Password:`, `>`, or `#` is detected.
+  2. If `Password:` is detected, runs **Switch Reset for Password**.
+  3. If `(config...)#` is detected, sends `end`, then starts a fresh 30-second prompt detection window.
+  4. If plain `#` is detected, sends `disable`, then starts a fresh 30-second prompt detection window.
+  5. If a user prompt ending in `>` is detected, sends `en` to test enable access.
+  6. If `enable` asks for `Password:`, routes to **Switch Reset for Password**.
+  7. If privileged prompt `#` is reached, runs **Switch Reset for No Password**.
+
 ### 1-A. Router Reset for Password:
 - **Trigger Condition:** Click when you see the `Password:` prompt.
 - **Use Case:** You are locked out by a console password but want to wipe the device quickly.
@@ -39,35 +63,15 @@ This document describes the **Trigger Conditions** (when to use) and **Execution
 ## 2. Password Recovery / Factory Reset
 > **Use these when you are LOCKED OUT or the device needs a full physical reset.**
 
-### 2-A. Router Recovery (Auto)
-- **Trigger Condition:** Device is ON (running).
-- **Use Case:** Standard recovery for ISR/ASR routers.
-- **Logic (Time-Based):**
-  1. Sends `reload`.
-  2. Auto-sends **BREAK signals** to force ROMMON mode.
-  3. **ROMMON:** Sends `confreg 0x2142` -> `reset`.
-  4. **Boot Wait (1m 50s):** Blindly waits for reboot.
-  5. **Config Check:** Waits for `Initial Configuration Dialog`.
-     - If found, sends `no`.
-  6. **Wait 15s:** Waits for logs to settle.
-  7. **Wake-up:** Sends Enters to get `Router>` prompt.
-  8. **Recovery Commands:**
-     - `enable`
-     - `conf t`
-     - `config-register 0x2102` (Restore normal boot)
-     - `end`
-     - `write erase` (Wipe config)
-     - `reload` (Reboot clean)
-
-### 2-B. Router Recovery (Manual)
+### 2-A. Router Recovery (Manual)
 - **Trigger Condition:** Device is OFF (Power Cycle).
-- **Use Case:** Fallback if Auto fails, or device is stuck.
+- **Use Case:** Router recovery when you need to catch ROMMON during power-on.
 - **Logic:**
   1. Manual Step: Turn device OFF -> ON.
   2. Script sends **BREAK signals** immediately to catch ROMMON.
-  3. Once `rommon 1 >` is detected, follows the same steps as **Auto Recovery** (Step 3 onwards).
+  3. Once `rommon 1 >` is detected, runs the shared router recovery sequence.
 
-### 2-C. Switch Factory Reset (Boot Mode)
+### 2-B. Switch Factory Reset (Boot Mode)
 - **Trigger Condition:** Device is at `switch:` prompt (Bootloader).
 - **Use Case:** Locked switch (2960/3560/3750). Requires holding 'MODE' button during power-on.
 - **Logic:**
@@ -78,7 +82,7 @@ This document describes the **Trigger Conditions** (when to use) and **Execution
      - `delete flash:private-config.text`
   3. Sends `reset` to reboot.
 
-### 2-D. 9200 Recovery
+### 2-C. 9200 Recovery
 - **Trigger Condition:** Catalyst 9200/9300 at `switch:` prompt.
 - **Use Case:** Newer Catalyst switches use a specific variable to bypass password.
 - **Phase 1 (Boot):**

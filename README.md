@@ -65,6 +65,15 @@ Utility control:
 
 ## Button Reference
 
+### Experimental Auto Workflows
+
+Use these when you want the app to wake the console and choose the matching quick reset path automatically.
+
+| Button | Start when you see | Main commands and behavior |
+| --- | --- | --- |
+| `Router Auto Reset (Experimental)` | A running router console | Sends Enter for up to 30 seconds until it detects `Password:`, `>`, or `#`. `Password:` routes to `Router Reset for Password:`. `(config...)#` sends `end`, plain `#` sends `disable`, then the script returns to prompt detection and checks `en`; `Password:` routes to password reset, `#` routes to no-password reset. |
+| `Switch Auto Reset (Experimental)` | A running switch console | Sends Enter for up to 30 seconds until it detects `Password:`, `>`, or `#`. `Password:` routes to `Switch Reset for Password:`. `(config...)#` sends `end`, plain `#` sends `disable`, then the script returns to prompt detection and checks `en`; `Password:` routes to password reset, `#` routes to no-password reset. |
+
 ### Quick Reset Workflows
 
 Use these when the device is already booted and you can see a normal Cisco prompt or password prompt.
@@ -84,7 +93,6 @@ Use these when you are locked out or need a deeper reset path.
 
 | Button | Start when you see | Main commands and behavior |
 | --- | --- | --- |
-| `Router Recovery (Auto)` | A running router console | Sends `reload`, handles save/proceed prompts, sends repeated BREAK signals for up to 60 seconds until `rommon 1 >`, then runs the shared router recovery sequence. |
 | `Router Recovery (Manual)` | Router is being power-cycled | You power the router off/on, then the script sends repeated BREAK signals for up to 120 seconds until `rommon 1 >`, then runs the shared router recovery sequence. |
 | `Switch Factory Reset` | `switch:` bootloader prompt | Deletes `flash:vlan.dat`, `flash:config.text`, and `flash:private-config.text`, then sends `reset`. |
 | `9200 Recovery - Phase 1 (Boot)` | Catalyst 9200/9300 `switch:` prompt | Sends `SWITCH_IGNORE_STARTUP_CFG=1`, then `boot`. Wait for the switch to boot to a user prompt before Phase 2. |
@@ -138,7 +146,7 @@ Use Chrome or Edge. Safari and Firefox do not provide the required Web Serial AP
 
 The app stops waiting when expected text is not seen in time. Read the terminal output, continue manually from the current Cisco prompt, or restart the workflow from a known prompt.
 
-### Router auto recovery cannot reach ROMMON
+### Router recovery cannot reach ROMMON
 
 Use `Router Recovery (Manual)`. Power-cycle the router, click the manual recovery button immediately, and let the script send BREAK signals during early boot.
 
